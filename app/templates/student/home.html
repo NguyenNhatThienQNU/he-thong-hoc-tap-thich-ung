@@ -1,0 +1,100 @@
+{% extends "student_base.html" %}
+{% from "_macros.html" import csrf, mastery_bar, hint_badge, session_badge with context %}
+{% block title %}Lộ trình của em{% endblock %}
+{% block content %}
+<div class="hero-student p-4 mb-4 shadow-sm">
+  <div class="row g-3 align-items-center">
+    <div class="col-md-7">
+      <h1 class="h4 mb-1">Chào {{ student.first_name }}!</h1>
+      {% if student.effective_mode == "direct" %}
+      <p class="mb-0 text-white-50">Khi cần, em có thể hỏi trợ lý AI để xem lời giải của câu đang làm.</p>
+      {% else %}
+      <p class="mb-0 text-white-50">AI sẽ gợi ý từng bước để em tự tìm ra lời giải. Càng ít gợi ý, em càng tiến bộ.</p>
+      {% endif %}
+    </div>
+    <div class="col-md-5">
+      <div class="row g-2 text-center">
+        <div class="col-4"><div class="bg-white bg-opacity-25 rounded-3 p-2"><div class="h5 mb-0">{{ stats.n }}</div><div class="small text-white-50">câu đã luyện</div></div></div>
+        <div class="col-4"><div class="bg-white bg-opacity-25 rounded-3 p-2"><div class="h5 mb-0">{{ stats.independent }}</div><div class="small text-white-50">câu tự giải</div></div></div>
+        <div class="col-4"><div class="bg-white bg-opacity-25 rounded-3 p-2"><div class="h5 mb-0">{{ stats.mean_level | score(1) if stats.n else "–" }}</div><div class="small text-white-50">mức gợi ý TB</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if pending_pre %}
+<div class="alert alert-primary d-flex flex-wrap justify-content-between align-items-center gap-2">
+  <div><i class="bi bi-clipboard-check"></i> Em hãy làm <b>{{ pending_pre.title }}</b> ({{ pending_pre.duration_min }} phút, không dùng AI) để hệ thống xây dựng lộ trình phù hợp với em.</div>
+  <a href="/hs/kiem-tra/{{ pending_pre.id }}" class="btn btn-primary btn-sm">Làm bài ngay</a>
+</div>
+{% endif %}
+
+{% if resume %}
+<div class="alert alert-info d-flex flex-wrap justify-content-between align-items-center gap-2">
+  <div><i class="bi bi-hourglass-split"></i> Em đang làm dở một câu thuộc chủ đề “{{ resume.question.topic.name }}”.</div>
+  <a href="/hs/luyen-tap/{{ resume.id }}" class="btn btn-info btn-sm">Làm tiếp</a>
+</div>
+{% endif %}
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <h2 class="section-title mb-3">Lộ trình học của em</h2>
+    <div class="d-flex flex-column gap-2">
+      {% for st in states %}
+      <a href="/hs/chu-de/{{ st.topic.id }}" class="path-item {% if rec and rec.topic.id == st.topic.id %}recommended{% endif %}">
+        <div class="path-num st-{{ st.status }}">{% if st.status == "mastered" %}<i class="bi bi-check-lg"></i>{% else %}{{ loop.index }}{% endif %}</div>
+        <div class="flex-grow-1">
+          <div class="d-flex flex-wrap justify-content-between gap-1">
+            <span class="fw-semibold">{{ st.topic.name }}</span>
+            <span>
+              {% if rec and rec.topic.id == st.topic.id %}<span class="badge text-bg-primary">Đề xuất học tiếp</span>{% endif %}
+              <span class="badge text-bg-{{ st.css }}-subtle text-{{ st.css }}-emphasis">{{ st.label }}</span>
+            </span>
+          </div>
+          {{ mastery_bar(st.p, st.n_obs) }}
+          {% if st.locked and st.status != "mastered" %}<div class="muted-small"><i class="bi bi-lock"></i> Nên học sau: {{ st.missing_prereqs | join(", ") }}</div>{% endif %}
+        </div>
+        <i class="bi bi-chevron-right text-muted"></i>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="col-lg-4">
+    {% if exams %}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header"><span class="section-title">Bài kiểm tra</span></div>
+      <ul class="list-group list-group-flush">
+        {% for exam, att in exams %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div><div class="small fw-semibold">{{ exam.title }}</div><div class="muted-small">{{ exam.question_ids|length }} câu · {{ exam.duration_min }} phút</div></div>
+          {% if att and att.submitted_at %}<a href="/hs/kiem-tra/{{ exam.id }}/ket-qua" class="badge text-bg-success text-decoration-none">{{ att.score | score }} điểm</a>
+          {% else %}<a href="/hs/kiem-tra/{{ exam.id }}" class="btn btn-sm btn-primary">{{ "Làm tiếp" if att else "Làm bài" }}</a>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    {% if stats.trend %}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header"><span class="section-title">Em tự lực hơn chưa?</span></div>
+      <ul class="list-group list-group-flush">
+        {% for t in stats.trend[-4:] %}
+        <li class="list-group-item small d-flex justify-content-between"><span>Tuần {{ t.week[8:10] }}/{{ t.week[5:7] }}</span><span>tự giải {{ t.independent_rate | pct }} · gợi ý TB {{ t.mean_level | score(1) }}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    <div class="card border-0 shadow-sm">
+      <div class="card-header"><span class="section-title">Gần đây</span></div>
+      <ul class="list-group list-group-flush">
+        {% for s in recent %}
+        <li class="list-group-item small d-flex justify-content-between align-items-center gap-2">
+          <a href="/hs/luyen-tap/{{ s.id }}" class="text-decoration-none text-truncate">{{ s.question.topic.name }}</a>
+          <span class="text-nowrap">{{ session_badge(s) }}</span>
+        </li>
+        {% else %}<li class="list-group-item text-muted small">Em chưa luyện câu nào.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

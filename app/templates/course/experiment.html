@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% from "_macros.html" import mode_badge, metric_value as fmt with context %}
+{% block title %}Thực nghiệm · {{ course.name }}{% endblock %}
+{% block content %}
+{% include "course/_tabs.html" %}
+{% if report.has_demo %}
+<div class="alert demo-banner small"><i class="bi bi-exclamation-triangle"></i> Báo cáo đang bao gồm học sinh của dữ liệu mẫu. Đây là số liệu mô phỏng để xem thử giao diện, không phải kết quả thực nghiệm và không được dùng trong báo cáo nghiên cứu.</div>
+{% endif %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div class="d-flex flex-wrap gap-2 align-items-center">
+    {{ mode_badge("adaptive") }} <span class="small">{{ report.group_sizes["adaptive"] }} học sinh</span>
+    <span class="text-muted">·</span>
+    {{ mode_badge("direct") }} <span class="small">{{ report.group_sizes["direct"] }} học sinh</span>
+    <span class="text-muted">·</span>
+    {% for kind in ["pre", "post", "retention"] %}
+      <span class="badge {{ 'text-bg-success' if exam_counts.get(kind) else 'text-bg-light border text-muted' }}"><i class="bi bi-{{ 'check2' if exam_counts.get(kind) else 'dash' }}"></i> Bài {{ EXAM_KINDS[kind] | lower }}</span>
+    {% endfor %}
+  </div>
+  <div class="dropdown">
+    <button class="btn btn-outline-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-download"></i> Xuất dữ liệu CSV</button>
+    <ul class="dropdown-menu dropdown-menu-end">
+      <li><a class="dropdown-item" href="/mon-hoc/{{ course.id }}/thuc-nghiem/hoc-sinh.csv">Chỉ số theo học sinh (có họ tên)</a></li>
+      <li><a class="dropdown-item" href="/mon-hoc/{{ course.id }}/thuc-nghiem/hoc-sinh.csv?an_danh=1">Chỉ số theo học sinh (ẩn danh)</a></li>
+      <li><a class="dropdown-item" href="/mon-hoc/{{ course.id }}/thuc-nghiem/phien.csv">Từng phiên luyện tập (ẩn danh)</a></li>
+      <li><a class="dropdown-item" href="/mon-hoc/{{ course.id }}/thuc-nghiem/tuong-tac.csv">Nhật ký tương tác với AI (ẩn danh)</a></li>
+    </ul>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header"><span class="section-title">So sánh hai nhóm</span><div class="muted-small">Kiểm định t hai mẫu độc lập (Welch), hệ số ảnh hưởng Cohen's d tính theo nhóm thực nghiệm trừ nhóm đối chứng.</div></div>
+  <div class="table-responsive">
+    <table class="table align-middle mb-0">
+      <thead>
+        <tr><th>Chỉ số</th><th>Nhóm thực nghiệm<br><span class="fw-normal">TB ± ĐLC (n)</span></th><th>Nhóm đối chứng<br><span class="fw-normal">TB ± ĐLC (n)</span></th><th>Chênh lệch</th><th>t</th><th>p</th><th>Cohen's d</th></tr>
+      </thead>
+      <tbody>
+      {% for (key, label, unit, purpose), c in report.comparisons %}
+        <tr>
+          <td><div class="fw-semibold small">{{ label }}</div><div class="muted-small">{{ purpose }}</div></td>
+          <td class="text-nowrap">{{ fmt(key, c.mean_a) }}{% if c.sd_a is not none %} ± {{ fmt(key, c.sd_a) }}{% endif %} <span class="muted-small">({{ c.n_a }})</span></td>
+          <td class="text-nowrap">{{ fmt(key, c.mean_b) }}{% if c.sd_b is not none %} ± {{ fmt(key, c.sd_b) }}{% endif %} <span class="muted-small">({{ c.n_b }})</span></td>
+          <td class="text-nowrap">{% if c.diff is not none %}{{ "+" if c.diff > 0 else "" }}{{ fmt(key, c.diff) }}{% else %}–{% endif %}</td>
+          <td>{{ c.t | score(2) if c.t is not none else "–" }}</td>
+          <td class="{% if c.significant %}sig{% endif %}">{{ c.p | pval }}</td>
+          <td class="text-nowrap">{% if c.d is not none %}{{ c.d | score(2) }} <span class="muted-small">{{ c.effect_label }}</span>{% else %}–{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card-body pt-2 muted-small">p &lt; 0,05 (tô màu xanh) là khác biệt có ý nghĩa thống kê. Cohen's d: dưới 0,2 rất nhỏ; 0,2–0,5 nhỏ; 0,5–0,8 trung bình; từ 0,8 lớn. Nhóm nhỏ (dưới 15 em mỗi nhóm) nên kết hợp thêm phân tích định tính từ nhật ký tương tác.</div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header"><span class="section-title">Mức hỗ trợ trung bình mỗi câu theo tuần</span><div class="muted-small">0 = tự giải, 5 = xem lời giải; đường đi xuống nghĩa là học sinh cần AI ít hơn</div></div>
+      <div class="card-body"><canvas id="levelChart" height="210"></canvas></div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header"><span class="section-title">Tỉ lệ câu tự giải theo tuần</span><div class="muted-small">Đúng mà chỉ cần tối đa gợi ý định hướng (mức 1), không xem lời giải</div></div>
+      <div class="card-body"><canvas id="indepChart" height="210"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header"><span class="section-title">Hoạt động luyện tập của hai nhóm</span></div>
+  <div class="table-responsive">
+    <table class="table mb-0 align-middle">
+      <thead><tr><th>Nhóm</th><th>Số câu đã luyện</th><th>Tỉ lệ làm đúng</th><th>Tỉ lệ tự giải</th><th>Mức hỗ trợ TB</th><th>Số lần nhờ AI TB</th><th>Tỉ lệ xem lời giải</th></tr></thead>
+      <tbody>
+      {% for g in ["adaptive", "direct"] %}{% set p = report.practice[g] %}
+        <tr><td>{{ mode_badge(g) }}</td><td>{{ p.n }}</td>
+          {% if p.n %}<td>{{ p.solved_rate | pct }}</td><td>{{ p.independent_rate | pct }}</td><td>{{ p.mean_level | score(2) }}</td><td>{{ p.mean_requests | score(2) }}</td><td>{{ p.solution_rate | pct }}</td>
+          {% else %}<td colspan="5" class="text-muted small">Chưa có dữ liệu</td>{% endif %}</tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header"><span class="section-title">Chi tiết từng học sinh</span></div>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead><tr><th>Học sinh</th><th>Lớp</th><th>Nhóm</th><th>Đầu vào</th><th>Sau học</th><th>Ghi nhớ</th><th>Số câu luyện</th><th>Tự giải</th><th>Mức hỗ trợ TB</th><th>Xem lời giải</th></tr></thead>
+      <tbody>
+      {% for r in report.rows %}
+        <tr class="clickable-row" data-href="/hoc-sinh/{{ r.student.id }}">
+          <td>{{ r.student.full_name }}</td><td class="small">{{ r.student.classroom.name }}</td><td>{{ mode_badge(r.group, true) }}</td>
+          <td>{{ r.pre | score }}</td><td>{{ r.post | score }}</td><td>{{ r.retention | score }}</td><td>{{ r.sessions }}</td>
+          <td>{{ r.independent_rate | pct }}</td><td>{{ r.mean_level | score(2) }}</td><td>{{ r.solution_rate | pct }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="10" class="text-muted small">Chưa có lớp nào học môn này.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/vendor/chartjs/chart.umd.min.js"></script>
+<script>
+(function () {
+  const data = {{ chart | tojson_vn }};
+  const labels = data.weeks.map((w) => { const p = w.split("-"); return "Tuần " + p[2] + "/" + p[1]; });
+  const common = {
+    responsive: true,
+    plugins: { legend: { position: "bottom", labels: { boxWidth: 12 } } },
+    spanGaps: true,
+  };
+  const ds = (label, values, color) => ({ label, data: values, borderColor: color, backgroundColor: color, tension: 0.25, pointRadius: 4 });
+  new Chart(document.getElementById("levelChart"), {
+    type: "line",
+    data: { labels, datasets: [ds("Nhóm thực nghiệm", data.adaptive_level, "#0ca678"), ds("Nhóm đối chứng", data.direct_level, "#f76707")] },
+    options: { ...common, scales: { y: { min: 0, max: 5, title: { display: true, text: "Mức hỗ trợ (0–5)" } } } },
+  });
+  const pct = (arr) => arr.map((v) => (v === null ? null : Math.round(v * 1000) / 10));
+  new Chart(document.getElementById("indepChart"), {
+    type: "line",
+    data: { labels, datasets: [ds("Nhóm thực nghiệm", pct(data.adaptive_indep), "#0ca678"), ds("Nhóm đối chứng", pct(data.direct_indep), "#f76707")] },
+    options: { ...common, scales: { y: { min: 0, max: 100, title: { display: true, text: "Tỉ lệ tự giải (%)" } } } },
+  });
+})();
+</script>
+{% endblock %}

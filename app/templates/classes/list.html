@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, empty_state, mode_badge with context %}
+{% block title %}Lớp học{% endblock %}
+{% block content %}
+<div class="page-head d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h4 mb-0">Lớp học</h1>
+  {% if courses %}<button class="btn btn-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#newClass"><i class="bi bi-plus-lg"></i> Tạo lớp</button>{% endif %}
+</div>
+{% if not courses %}
+<div class="alert alert-info">Hãy <a href="/mon-hoc">tạo môn học</a> trước, vì mỗi lớp học theo một môn (lộ trình, kho tri thức, câu hỏi).</div>
+{% else %}
+<div class="collapse {% if not classes %}show{% endif %} mb-4" id="newClass">
+  <div class="card border-0 shadow-sm"><div class="card-body">
+    <form method="post" action="/lop" class="row g-3 align-items-end">
+      {{ csrf() }}
+      <div class="col-md-3"><label class="form-label small mb-1">Tên lớp</label><input name="name" class="form-control" placeholder="10A1" required></div>
+      <div class="col-md-4"><label class="form-label small mb-1">Môn học</label>
+        <select name="course_id" class="form-select">{% for c in courses %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></div>
+      <div class="col-md-3"><label class="form-label small mb-1">Chế độ AI mặc định</label>
+        <select name="default_mode" class="form-select">{% for k, v in MODE_LABELS.items() %}<option value="{{ k }}">{{ v }} ({{ MODE_GROUPS[k] | lower }})</option>{% endfor %}</select></div>
+      <div class="col-md-2"><button class="btn btn-primary w-100">Tạo lớp</button></div>
+    </form>
+  </div></div>
+</div>
+{% endif %}
+{% if classes %}
+<div class="row g-3">
+  {% for c in classes %}
+  <div class="col-md-6 col-xl-4">
+    <a href="/lop/{{ c.id }}" class="card class-card border-0 shadow-sm h-100 text-decoration-none text-reset">
+      <div class="card-body">
+        <div class="d-flex gap-3 align-items-center mb-2">
+          <div class="avatar">{{ c.name[:3] }}</div>
+          <div><h2 class="h6 mb-0">{{ c.name }}</h2><span class="muted-small">{{ c.course.name }}</span></div>
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+          <span class="small"><i class="bi bi-people"></i> {{ c.students|length }} học sinh</span>
+          {{ mode_badge(c.default_mode, true) }}
+        </div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% elif courses %}
+{% call empty_state("people", "Chưa có lớp", "Tạo lớp, nhập danh sách học sinh và in phiếu mã đăng nhập.") %}{% endcall %}
+{% endif %}
+{% endblock %}

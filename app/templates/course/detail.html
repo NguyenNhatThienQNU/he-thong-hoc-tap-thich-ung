@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, empty_state with context %}
+{% block title %}{{ course.name }}{% endblock %}
+{% block content %}
+{% include "course/_tabs.html" %}
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <div><span class="section-title">Chủ đề theo thứ tự học</span><div class="muted-small">Học sinh được đề xuất học chủ đề tiếp theo khi đã đạt các chủ đề tiên quyết (mức nắm vững từ 60%).</div></div>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#newTopic"><i class="bi bi-plus-lg"></i> Thêm chủ đề</button>
+      </div>
+      <div class="collapse {% if not course.topics %}show{% endif %}" id="newTopic">
+        <form method="post" action="/mon-hoc/{{ course.id }}/chu-de" class="card-body border-bottom row g-2">
+          {{ csrf() }}
+          <div class="col-md-6"><input name="name" class="form-control" placeholder="Tên chủ đề" required></div>
+          <div class="col-md-2"><input name="position" type="number" class="form-control" placeholder="Thứ tự"></div>
+          <div class="col-md-4">
+            <select name="prerequisites" class="form-select" multiple size="2" title="Chủ đề tiên quyết (giữ Ctrl để chọn nhiều)">
+              {% for t in course.topics %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-12"><input name="description" class="form-control" placeholder="Mô tả ngắn (tùy chọn)"></div>
+          <div class="col-12"><button class="btn btn-primary btn-sm">Lưu chủ đề</button></div>
+        </form>
+      </div>
+      {% if course.topics %}
+      <div class="list-group list-group-flush">
+        {% for t in course.topics %}
+        {% set st = topic_stats[t.id] %}
+        <div class="list-group-item py-3">
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <div>
+              <div class="fw-semibold">{{ t.position }}. {{ t.name }}</div>
+              {% if t.prerequisite_ids %}<div class="muted-small">Tiên quyết: {% for pid in t.prerequisite_ids %}{{ topic_names.get(pid, "?") }}{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+              <div class="small mt-1">
+                <span class="me-3 {% if not st.materials %}text-danger{% endif %}"><i class="bi bi-book"></i> {{ st.materials }} tài liệu đã duyệt</span>
+                <span class="me-3 {% if not st.practice %}text-danger{% endif %}"><i class="bi bi-pencil"></i> {{ st.practice }} câu luyện tập</span>
+                <span><i class="bi bi-clipboard-check"></i> {{ st.test }} câu kiểm tra</span>
+              </div>
+            </div>
+            <div class="d-flex gap-1">
+              <a class="btn btn-sm btn-light" href="/mon-hoc/{{ course.id }}/cau-hoi/moi?topic={{ t.id }}" title="Thêm câu hỏi"><i class="bi bi-plus-square"></i></a>
+              <button class="btn btn-sm btn-light" data-bs-toggle="collapse" data-bs-target="#edit{{ t.id }}" title="Sửa"><i class="bi bi-pencil"></i></button>
+              <form method="post" action="/chu-de/{{ t.id }}/xoa" data-confirm="Xóa chủ đề “{{ t.name }}”?">{{ csrf() }}<button class="btn btn-sm btn-light text-danger" title="Xóa"><i class="bi bi-trash"></i></button></form>
+            </div>
+          </div>
+          <div class="collapse mt-2" id="edit{{ t.id }}">
+            <form method="post" action="/chu-de/{{ t.id }}/sua" class="row g-2">
+              {{ csrf() }}
+              <div class="col-md-6"><input name="name" class="form-control form-control-sm" value="{{ t.name }}"></div>
+              <div class="col-md-2"><input name="position" type="number" class="form-control form-control-sm" value="{{ t.position }}"></div>
+              <div class="col-md-4">
+                <select name="prerequisites" class="form-select form-select-sm" multiple size="3">
+                  {% for o in course.topics if o.id != t.id %}<option value="{{ o.id }}" {% if o.id in t.prerequisite_ids %}selected{% endif %}>{{ o.name }}</option>{% endfor %}
+                </select>
+              </div>
+              <div class="col-12"><input name="description" class="form-control form-control-sm" value="{{ t.description }}" placeholder="Mô tả"></div>
+              <div class="col-12"><button class="btn btn-primary btn-sm">Lưu</button></div>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      {% call empty_state("diagram-3", "Chưa có chủ đề", "Thêm các chủ đề theo thứ tự học của môn.") %}{% endcall %}
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm mb-4" id="chinh-sach">
+      <div class="card-header"><span class="section-title">Chính sách gợi ý thích ứng</span><div class="muted-small">Áp dụng cho nhóm thực nghiệm</div></div>
+      <form method="post" action="/mon-hoc/{{ course.id }}/chinh-sach" class="card-body">
+        {{ csrf() }}
+        <div class="form-check form-switch mb-2">
+          <input class="form-check-input" type="checkbox" name="require_attempt_first" id="p1" {% if policy.require_attempt_first %}checked{% endif %}>
+          <label class="form-check-label small" for="p1">Học sinh phải viết hướng làm hoặc chỗ đang vướng trước khi nhận gợi ý</label>
+        </div>
+        <div class="form-check form-switch mb-3">
+          <input class="form-check-input" type="checkbox" name="fading" id="p2" {% if policy.fading %}checked{% endif %}>
+          <label class="form-check-label small" for="p2">Giảm dần hỗ trợ khi học sinh đã nắm vững chủ đề (từ 70%)</label>
+        </div>
+        <div class="mb-2">
+          <label class="form-label small mb-1">Mức gợi ý tối đa khi đã nắm vững</label>
+          <select name="max_level_mastered" class="form-select form-select-sm">
+            {% for lv in [1, 2, 3, 4] %}<option value="{{ lv }}" {% if policy.max_level_mastered == lv %}selected{% endif %}>Mức {{ lv }} – {{ HINT_LEVELS[lv][0] }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small mb-1">Số lần trả lời sai trước khi mở lời giải chi tiết</label>
+          <input type="number" min="0" max="5" name="min_attempts_for_solution" class="form-control form-control-sm" value="{{ policy.min_attempts_for_solution }}">
+        </div>
+        <button class="btn btn-primary btn-sm">Lưu chính sách</button>
+      </form>
+    </div>
+    <div class="card border-0 shadow-sm">
+      <div class="card-header"><span class="section-title">Thông tin môn học</span></div>
+      <form method="post" action="/mon-hoc/{{ course.id }}/sua" class="card-body">
+        {{ csrf() }}
+        <div class="mb-2"><label class="form-label small mb-1">Tên</label><input name="name" class="form-control form-control-sm" value="{{ course.name }}"></div>
+        <div class="mb-2"><label class="form-label small mb-1">Khối</label><input name="grade" class="form-control form-control-sm" value="{{ course.grade }}"></div>
+        <div class="mb-3"><label class="form-label small mb-1">Mô tả</label><textarea name="description" class="form-control form-control-sm" rows="2">{{ course.description }}</textarea></div>
+        <div class="d-flex justify-content-between">
+          <button class="btn btn-primary btn-sm">Lưu</button>
+        </div>
+      </form>
+      <form method="post" action="/mon-hoc/{{ course.id }}/xoa" class="card-footer bg-white border-0 pt-0" data-confirm="Xóa môn học cùng toàn bộ chủ đề, tài liệu, câu hỏi, bài kiểm tra?">
+        {{ csrf() }}<button class="btn btn-link btn-sm text-danger p-0">Xóa môn học</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

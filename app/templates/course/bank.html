@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, difficulty_badge, empty_state with context %}
+{% block title %}Ngân hàng câu hỏi · {{ course.name }}{% endblock %}
+{% block content %}
+{% include "course/_tabs.html" %}
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <form method="get" class="d-flex flex-wrap gap-2">
+        <select name="topic" class="form-select form-select-sm w-auto" data-autosubmit>
+          <option value="">Mọi chủ đề</option>
+          {% for t in course.topics %}<option value="{{ t.id }}" {% if f_topic == t.id %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
+        </select>
+        <select name="status" class="form-select form-select-sm w-auto" data-autosubmit>
+          <option value="">Đang dùng và nháp</option>
+          {% for k, v in QUESTION_STATUS.items() %}<option value="{{ k }}" {% if f_status == k %}selected{% endif %}>{{ v }}</option>{% endfor %}
+        </select>
+        <select name="purpose" class="form-select form-select-sm w-auto" data-autosubmit>
+          <option value="">Mọi mục đích</option>
+          {% for k, v in PURPOSES.items() %}<option value="{{ k }}" {% if f_purpose == k %}selected{% endif %}>{{ v }}</option>{% endfor %}
+        </select>
+      </form>
+      <a href="/mon-hoc/{{ course.id }}/cau-hoi/moi" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Soạn câu hỏi</a>
+    </div>
+    {% if drafts %}
+    <div class="alert alert-warning py-2 small"><i class="bi bi-hourglass-split"></i> Có {{ drafts }} câu hỏi nháp do AI soạn đang chờ thầy cô duyệt. Câu nháp chưa được dùng cho học sinh.</div>
+    {% endif %}
+    {% if questions %}
+    <form method="post" action="/mon-hoc/{{ course.id }}/cau-hoi/duyet" id="bulkForm">{{ csrf() }}</form>
+    {% for q in questions %}
+    <div class="card border-0 shadow-sm mb-3 question-card {% if q.status == 'draft' %}is-draft{% endif %}">
+      <div class="card-body">
+        <div class="d-flex justify-content-between gap-2 mb-2">
+          <div class="d-flex flex-wrap gap-1 align-items-center">
+            {% if q.status == 'draft' %}<input type="checkbox" class="form-check-input me-1" name="ids" value="{{ q.id }}" form="bulkForm" checked>{% endif %}
+            <span class="badge text-bg-light border">#{{ q.id }}</span>
+            <span class="badge text-bg-light border">{{ q.topic.name }}</span>
+            {{ difficulty_badge(q.difficulty) }}
+            <span class="badge text-bg-light border">{{ QUESTION_KINDS[q.kind] }}</span>
+            <span class="badge text-bg-light border">{{ PURPOSES[q.purpose] }}</span>
+            {% if q.status == 'draft' %}<span class="badge text-bg-warning">Nháp{% if q.source == 'ai' %} · AI soạn{% endif %}</span>{% elif q.status == 'archived' %}<span class="badge text-bg-secondary">Đã ẩn</span>{% endif %}
+          </div>
+          <div class="d-flex gap-1 flex-shrink-0">
+            {% if q.status == 'draft' %}
+            <form method="post" action="/cau-hoi/{{ q.id }}/trang-thai">{{ csrf() }}<input type="hidden" name="status" value="approved"><button class="btn btn-sm btn-success" title="Duyệt"><i class="bi bi-check2"></i></button></form>
+            {% endif %}
+            <a href="/cau-hoi/{{ q.id }}" class="btn btn-sm btn-light" title="Sửa"><i class="bi bi-pencil"></i></a>
+            <form method="post" action="/cau-hoi/{{ q.id }}/xoa" data-confirm="Xóa câu hỏi #{{ q.id }}?">{{ csrf() }}<button class="btn btn-sm btn-light text-danger" title="Xóa"><i class="bi bi-trash"></i></button></form>
+          </div>
+        </div>
+        <div class="q-stem">{{ q.stem | md }}</div>
+        {% if q.kind == 'mcq' %}
+        <ol type="A" class="small mb-2 mt-2">
+          {% for o in q.options_list %}<li class="{% if loop.index0 == q.correct_option %}fw-semibold text-success{% endif %}">{{ o }}{% if loop.index0 == q.correct_option %} <i class="bi bi-check-lg"></i>{% endif %}</li>{% endfor %}
+        </ol>
+        {% else %}
+        <div class="small mt-2"><span class="text-muted">Đáp án chấp nhận:</span> {% for a in q.accepted_answers %}<code>{{ a }}</code>{% if not loop.last %} hoặc {% endif %}{% endfor %}</div>
+        {% endif %}
+        {% if q.solution_steps %}
+        <details class="mt-2"><summary class="small text-muted">Lời giải mẫu ({{ q.solution_steps|length }} bước) – dùng cho bậc thang gợi ý</summary>
+          <ol class="small mt-2 mb-0">{% for s in q.solution_steps %}<li>{{ s }}</li>{% endfor %}</ol>
+        </details>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% if drafts %}<button class="btn btn-success btn-sm" form="bulkForm"><i class="bi bi-check2-all"></i> Duyệt các câu nháp đã chọn</button>{% endif %}
+    {% else %}
+    {% call empty_state("list-check", "Chưa có câu hỏi", "Soạn câu hỏi kèm lời giải từng bước, hoặc nhờ AI soạn nháp từ tài liệu đã duyệt.") %}{% endcall %}
+    {% endif %}
+  </div>
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm mb-4" id="ai">
+      <div class="card-header"><span class="section-title"><i class="bi bi-stars text-primary"></i> AI soạn câu hỏi nháp</span><div class="muted-small">AI chỉ dựa trên tài liệu đã duyệt. Câu sinh ra ở trạng thái nháp, thầy cô duyệt rồi mới dùng.</div></div>
+      <form method="post" action="/mon-hoc/{{ course.id }}/cau-hoi/ai" class="card-body" data-loading="AI đang soạn...">
+        {{ csrf() }}
+        <div class="mb-2">
+          <label class="form-label small mb-1">Dựa trên tài liệu</label>
+          <select name="material_id" class="form-select form-select-sm">
+            <option value="">Mọi tài liệu đã duyệt của chủ đề</option>
+            {% for m in approved_materials %}<option value="{{ m.id }}" {% if preselect_material == m.id %}selected{% endif %}>{{ m.title }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label small mb-1">Chủ đề</label>
+          <select name="topic_id" class="form-select form-select-sm">
+            <option value="">Theo chủ đề của tài liệu</option>
+            {% for t in course.topics %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-4"><label class="form-label small mb-1">Số câu</label><input type="number" name="count" min="1" max="10" value="5" class="form-control form-control-sm"></div>
+          <div class="col-8"><label class="form-label small mb-1">Mức độ</label>
+            <select name="difficulty" class="form-select form-select-sm">{% for k, v in DIFFICULTY.items() %}<option value="{{ k }}" {% if k == 2 %}selected{% endif %}>{{ v }}</option>{% endfor %}</select>
+          </div>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6"><label class="form-label small mb-1">Loại câu</label>
+            <select name="kind" class="form-select form-select-sm"><option value="mixed">Đan xen</option><option value="mcq">Trắc nghiệm</option><option value="short">Trả lời ngắn</option></select>
+          </div>
+          <div class="col-6"><label class="form-label small mb-1">Mục đích</label>
+            <select name="purpose" class="form-select form-select-sm">{% for k, v in PURPOSES.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm w-100"><i class="bi bi-stars"></i> Soạn câu hỏi nháp</button>
+      </form>
+    </div>
+    <div class="card border-0 shadow-sm">
+      <div class="card-body small text-muted">
+        <p class="mb-2"><b class="text-body">Lời giải từng bước quan trọng:</b> hệ thống dùng lời giải mẫu (mỗi dòng một bước, dòng cuối “Đáp án: …”) để dựng gợi ý mức 3–4 và để kiểm tra AI không làm lộ đáp án.</p>
+        <p class="mb-0">Câu “Luyện tập” xuất hiện trong lộ trình của học sinh; câu “Kiểm tra” chỉ dùng cho bài đầu vào, sau học, ghi nhớ để không lẫn với nội dung đã luyện cùng AI.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

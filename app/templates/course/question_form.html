@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf with context %}
+{% block title %}{{ "Sửa câu hỏi" if question and question.id else "Soạn câu hỏi" }}{% endblock %}
+{% block content %}
+{% include "course/_tabs.html" %}
+{% set q = question %}
+<div class="row justify-content-center">
+<div class="col-xl-9">
+  <a href="/mon-hoc/{{ course.id }}/cau-hoi" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Ngân hàng câu hỏi</a>
+  <h2 class="h5 mt-1 mb-3">{{ "Sửa câu hỏi #" ~ q.id if q and q.id else "Soạn câu hỏi mới" }}</h2>
+  {% for e in errors or [] %}<div class="alert alert-danger py-2">{{ e }}</div>{% endfor %}
+  {% if usage %}<div class="alert alert-info py-2 small">Câu này đã được dùng trong {{ usage }} phiên luyện tập{% if in_exams %} và nằm trong: {{ in_exams | join(", ") }}{% endif %}. Sửa nội dung có thể ảnh hưởng đến tính so sánh của dữ liệu.</div>{% endif %}
+  <form method="post" action="{{ '/cau-hoi/' ~ q.id if q and q.id else '/mon-hoc/' ~ course.id ~ '/cau-hoi' }}" class="card border-0 shadow-sm">
+    {{ csrf() }}
+    <div class="card-body p-4">
+      <div class="row g-3 mb-3">
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Chủ đề</label>
+          <select name="topic_id" class="form-select" required>
+            {% for t in course.topics %}<option value="{{ t.id }}" {% if (q and q.topic_id == t.id) or (not q and default_topic == t.id) %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Loại câu</label>
+          <select name="kind" id="kindSelect" class="form-select">
+            {% for k, v in kinds.items() %}<option value="{{ k }}" {% if (q and q.kind == k) or (not q and k == 'short') %}selected{% endif %}>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small mb-1">Mức độ</label>
+          <select name="difficulty" class="form-select">
+            {% for k, v in levels.items() %}<option value="{{ k }}" {% if (q and q.difficulty == k) or (not q and k == 2) %}selected{% endif %}>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Dùng cho</label>
+          <select name="purpose" class="form-select">
+            {% for k, v in purposes.items() %}<option value="{{ k }}" {% if (q and q.purpose == k) or (not q and k == 'practice') %}selected{% endif %}>{{ v }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small mb-1">Đề bài <span class="text-muted">(đặt mã lệnh trong cặp ``` ``` để hiển thị dạng khối mã; `...` cho mã ngắn)</span></label>
+        <textarea name="stem" class="form-control" rows="6" required>{{ q.stem if q else "" }}</textarea>
+      </div>
+      <div class="only-mcq mb-3">
+        <label class="form-label small mb-1">Các phương án (chọn phương án đúng)</label>
+        {% set opts = q.options_list if q else [] %}
+        {% for i in range(6) %}
+        <div class="input-group input-group-sm mb-1">
+          <span class="input-group-text"><input class="form-check-input mt-0" type="radio" name="correct_option" value="{{ i }}" {% if q and q.correct_option == i %}checked{% endif %}> &nbsp;{{ LETTERS[i] }}</span>
+          <input name="option_{{ i }}" class="form-control" value="{{ opts[i] if i < opts|length else '' }}" {% if i >= 4 %}placeholder="(không bắt buộc)"{% endif %}>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="only-text mb-3">
+        <label class="form-label small mb-1">Đáp án chấp nhận <span class="text-muted">(mỗi cách viết đúng một dòng; hệ thống bỏ qua dấu cách, chữ hoa, dấu tiếng Việt, và so sánh số)</span></label>
+        <textarea name="answer" class="form-control font-monospace" rows="3">{{ q.answer if q else "" }}</textarea>
+      </div>
+      <div class="mb-3">
+        <label class="form-label small mb-1">Lời giải từng bước <span class="text-muted">(mỗi dòng một bước, dòng cuối “Đáp án: …”)</span></label>
+        <textarea name="solution" class="form-control" rows="5" placeholder="Bước 1: ...&#10;Bước 2: ...&#10;Đáp án: ...">{{ q.solution if q else "" }}</textarea>
+      </div>
+      <div class="d-flex flex-wrap gap-3 align-items-center">
+        <select name="status" class="form-select w-auto">
+          {% for k, v in QUESTION_STATUS.items() %}<option value="{{ k }}" {% if (q and q.status == k) or (not q and k == 'approved') %}selected{% endif %}>{{ v }}</option>{% endfor %}
+        </select>
+        <button class="btn btn-primary">Lưu câu hỏi</button>
+        {% if not (q and q.id) %}<button class="btn btn-outline-primary" name="again" value="1">Lưu và soạn tiếp</button>{% endif %}
+      </div>
+    </div>
+  </form>
+</div>
+</div>
+{% endblock %}

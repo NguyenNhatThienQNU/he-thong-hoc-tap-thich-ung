@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, kpi, hint_badge, mode_badge, session_badge with context %}
+{% block title %}Tổng quan{% endblock %}
+{% block content %}
+<div class="page-head d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+  <div>
+    <h1 class="h4 mb-1">Xin chào, {{ teacher.full_name }}</h1>
+    <p class="text-muted mb-0 small">Theo dõi việc học cùng AI của học sinh và tiến trình thực nghiệm.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/mon-hoc" class="btn btn-outline-primary btn-sm"><i class="bi bi-journal-plus"></i> Môn học</a>
+    <a href="/lop" class="btn btn-primary btn-sm"><i class="bi bi-people"></i> Lớp học</a>
+  </div>
+</div>
+
+{% if not courses %}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body p-4">
+    <h2 class="section-title mb-3">Bắt đầu trong 4 bước</h2>
+    <div class="row g-3">
+      <div class="col-md-3"><div class="step-card"><span class="step-num">1</span><h6>Tạo môn học và chủ đề</h6><p class="small text-muted mb-0">Sắp xếp chủ đề theo thứ tự học, khai báo chủ đề tiên quyết.</p></div></div>
+      <div class="col-md-3"><div class="step-card"><span class="step-num">2</span><h6>Xây dựng kho tri thức</h6><p class="small text-muted mb-0">Tải tài liệu (Word, PDF, văn bản), đọc lại rồi duyệt để AI dùng khi gợi ý.</p></div></div>
+      <div class="col-md-3"><div class="step-card"><span class="step-num">3</span><h6>Ngân hàng câu hỏi và bài kiểm tra</h6><p class="small text-muted mb-0">Soạn câu luyện tập kèm lời giải từng bước; tạo bài đầu vào, sau học, ghi nhớ.</p></div></div>
+      <div class="col-md-3"><div class="step-card"><span class="step-num">4</span><h6>Tạo lớp và chia nhóm</h6><p class="small text-muted mb-0">Nhập danh sách, in phiếu mã đăng nhập, chia nhóm thực nghiệm và đối chứng.</p></div></div>
+    </div>
+    <hr>
+    <div class="d-flex flex-wrap align-items-center gap-3">
+      <form method="post" action="/demo/seed" data-loading="Đang nạp...">
+        {{ csrf() }}
+        <button class="btn btn-success"><i class="bi bi-magic"></i> Nạp dữ liệu mẫu Tin học 10 (Python)</button>
+      </form>
+      <span class="small text-muted">Gồm 5 chủ đề, tài liệu đã duyệt, 35 câu hỏi, 3 bài kiểm tra và một lớp 12 học sinh với lịch sử luyện tập mô phỏng.</span>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">{{ kpi("people", "primary", n_students, "Học sinh", classes|length ~ " lớp") }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("pencil-square", "info", summary.n or 0, "Câu luyện tập 7 ngày qua") }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("trophy", "success", summary.independent_rate | pct if summary.n else "–", "Tỉ lệ tự giải 7 ngày qua", "đúng, gợi ý tối đa mức 1") }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("life-preserver", "warning", summary.mean_level | score(1) if summary.n else "–", "Mức hỗ trợ trung bình (0–5)", "càng thấp càng tự lực") }}</div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="section-title">Hoạt động gần đây</span>
+      </div>
+      {% if recent %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead><tr><th>Học sinh</th><th>Chủ đề</th><th>Nhóm</th><th>Kết quả</th><th>Hỗ trợ</th><th>Thời gian</th></tr></thead>
+          <tbody>
+          {% for s in recent %}
+            <tr class="clickable-row" data-href="/phien/{{ s.id }}">
+              <td class="text-nowrap">{{ s.student.full_name }}<div class="muted-small">{{ s.student.classroom.name }}</div></td>
+              <td class="small">{{ s.question.topic.name | truncate_text(40) }}</td>
+              <td>{{ mode_badge(s.mode, true) }}</td>
+              <td>{{ session_badge(s) }}</td>
+              <td>{% if s.status == 'active' %}<span class="text-muted">–</span>{% else %}{{ hint_badge(s.max_hint_level) }}{% endif %}</td>
+              <td class="small text-muted text-nowrap">{{ s.started_at | ago }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="card-body text-muted small">Chưa có học sinh luyện tập.</div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header"><span class="section-title">Học sinh cần chú ý</span><div class="muted-small">14 ngày qua: mức hỗ trợ trung bình từ 3 trở lên hoặc xem lời giải từ 40% số câu</div></div>
+      <ul class="list-group list-group-flush">
+        {% for st, info in watch %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <a href="/hoc-sinh/{{ st.id }}" class="text-decoration-none">{{ st.full_name }} <span class="muted-small">· {{ st.classroom.name }}</span></a>
+          <span class="small text-nowrap">mức {{ info.mean_level | score(1) }} · lời giải {{ info.solution_rate | pct }}</span>
+        </li>
+        {% else %}
+        <li class="list-group-item text-muted small">Chưa có học sinh nào phụ thuộc nhiều vào gợi ý.</li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="card border-0 shadow-sm">
+      <div class="card-header"><span class="section-title">Môn học</span></div>
+      <ul class="list-group list-group-flush">
+        {% for c in courses %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <a href="/mon-hoc/{{ c.id }}" class="text-decoration-none">{{ c.name }}</a>
+          <a href="/mon-hoc/{{ c.id }}/thuc-nghiem" class="btn btn-sm btn-light"><i class="bi bi-graph-up"></i> Thực nghiệm</a>
+        </li>
+        {% else %}
+        <li class="list-group-item text-muted small">Chưa có môn học.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

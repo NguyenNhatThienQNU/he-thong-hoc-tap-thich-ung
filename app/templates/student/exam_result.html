@@ -1,0 +1,28 @@
+{% extends "student_base.html" %}
+{% block title %}Kết quả · {{ exam.title }}{% endblock %}
+{% block content %}
+<a href="/hs" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Lộ trình</a>
+<div class="card border-0 shadow-sm my-3">
+  <div class="card-body text-center p-4">
+    <div class="muted-small">{{ exam.title }}</div>
+    <div class="display-5 fw-bold text-primary">{{ attempt.score | score }}</div>
+    <div>Em làm đúng {{ attempt.correct_count }}/{{ attempt.total }} câu</div>
+    {% if exam.kind == "pre" %}<p class="small text-muted mt-2 mb-0">Hệ thống đã cập nhật lộ trình học dựa trên bài làm của em.</p>{% endif %}
+    <a href="/hs" class="btn btn-primary mt-3">Xem lộ trình học</a>
+  </div>
+</div>
+{% if exam.show_answers %}
+{% for q in questions %}
+{% set ok = attempt.results.get(q.id|string) %}
+<div class="exam-q {{ 'result-ok' if ok else 'result-bad' }}">
+  <div class="d-flex gap-2 mb-2"><span class="badge text-bg-{{ 'success' if ok else 'danger' }}">Câu {{ loop.index }} · {{ "Đúng" if ok else "Chưa đúng" }}</span></div>
+  <div class="q-stem mb-2">{{ q.stem | md }}</div>
+  {% set given = attempt.answers.get(q.id|string, "") %}
+  <div class="small">Em trả lời: {% if q.kind == "mcq" and given %}{{ LETTERS[given|int] }}. {{ q.options_list[given|int] }}{% else %}{{ given or "(bỏ trống)" }}{% endif %}</div>
+  <div class="small text-success">Đáp án: {{ q.final_answer_text }}</div>
+</div>
+{% endfor %}
+{% else %}
+<p class="text-muted small text-center">Thầy cô sẽ công bố đáp án sau.</p>
+{% endif %}
+{% endblock %}

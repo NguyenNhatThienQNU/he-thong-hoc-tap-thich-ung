@@ -1,0 +1,47 @@
+{% extends "student_base.html" %}
+{% from "_macros.html" import csrf, mastery_bar, hint_badge, session_badge with context %}
+{% block title %}{{ topic.name }}{% endblock %}
+{% block content %}
+<a href="/hs" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Lộ trình</a>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mt-1 mb-4">
+  <div style="min-width: 260px">
+    <h1 class="h4 mb-1">{{ topic.name }}</h1>
+    {{ mastery_bar(mastery.p_known, mastery.n_obs) }}
+    <div class="muted-small">Mức nắm vững ước lượng từ các câu em đã làm</div>
+  </div>
+  {% if pending_pre %}
+  <a href="/hs/kiem-tra/{{ pending_pre.id }}" class="btn btn-primary">Làm bài đầu vào trước</a>
+  {% else %}
+  <form method="post" action="/hs/luyen-tap">
+    {{ csrf() }}<input type="hidden" name="topic_id" value="{{ topic.id }}">
+    <button class="btn btn-primary btn-lg"><i class="bi bi-play-fill"></i> Luyện tập</button>
+  </form>
+  {% endif %}
+</div>
+<div class="row g-4">
+  <div class="col-lg-8">
+    <h2 class="section-title mb-2">Bài học</h2>
+    {% for m in materials %}
+    <details class="card border-0 shadow-sm mb-2" {% if loop.first %}open{% endif %}>
+      <summary class="card-header fw-semibold">{{ m.title }}</summary>
+      <div class="card-body material-text">{{ m.content }}</div>
+    </details>
+    {% else %}
+    <p class="text-muted small">Thầy cô chưa đăng tài liệu cho chủ đề này.</p>
+    {% endfor %}
+  </div>
+  <div class="col-lg-4">
+    <h2 class="section-title mb-2">Em đã luyện</h2>
+    <div class="card border-0 shadow-sm">
+      <ul class="list-group list-group-flush">
+        {% for s in sessions %}
+        <li class="list-group-item small d-flex justify-content-between align-items-center gap-2">
+          <a href="/hs/luyen-tap/{{ s.id }}" class="text-decoration-none">{{ s.started_at | localdt("%d/%m %H:%M") }}</a>
+          <span class="text-nowrap">{{ session_badge(s) }} {{ hint_badge(s.max_hint_level) if s.status != 'active' else '' }}</span>
+        </li>
+        {% else %}<li class="list-group-item text-muted small">Chưa có.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

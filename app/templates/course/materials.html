@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, empty_state with context %}
+{% block title %}Kho tri thức · {{ course.name }}{% endblock %}
+{% block content %}
+{% include "course/_tabs.html" %}
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header"><span class="section-title">Tài liệu học tập</span><div class="muted-small">Chỉ tài liệu đã duyệt mới được AI tra cứu khi gợi ý và khi soạn câu hỏi.</div></div>
+      {% if course.materials %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead><tr><th>Tài liệu</th><th>Chủ đề</th><th>Độ dài</th><th>Trạng thái</th></tr></thead>
+          <tbody>
+            {% for m in course.materials %}
+            <tr class="clickable-row" data-href="/tai-lieu/{{ m.id }}">
+              <td><a href="/tai-lieu/{{ m.id }}" class="text-decoration-none">{{ m.title }}</a>{% if m.filename %}<div class="muted-small"><i class="bi bi-paperclip"></i> {{ m.filename }}</div>{% endif %}</td>
+              <td class="small">{{ m.topic.name if m.topic else "Dùng chung" }}</td>
+              <td class="small text-muted text-nowrap">{{ m.word_count }} từ{% if m.is_approved %} · {{ m.chunks|length }} đoạn{% endif %}</td>
+              <td>{% if m.is_approved %}<span class="badge text-bg-success">Đã duyệt</span>{% else %}<span class="badge text-bg-warning">Chờ duyệt</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      {% call empty_state("book", "Kho tri thức đang trống", "Thêm tài liệu bài học để AI gợi ý bám sát nội dung thầy cô dạy.") %}{% endcall %}
+      {% endif %}
+    </div>
+    <div class="card border-0 shadow-sm">
+      <div class="card-header"><span class="section-title">Thử tra cứu kho tri thức</span><div class="muted-small">Xem AI sẽ lấy đoạn tài liệu nào khi học sinh hỏi một nội dung.</div></div>
+      <div class="card-body">
+        <form method="get" class="row g-2 mb-3">
+          <div class="col-md-6"><input name="q" class="form-control" value="{{ query }}" placeholder="Ví dụ: chia lấy phần dư"></div>
+          <div class="col-md-4">
+            <select name="topic" class="form-select">
+              <option value="">Mọi chủ đề</option>
+              {% for t in course.topics %}<option value="{{ t.id }}" {% if query_topic == t.id %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2"><button class="btn btn-outline-primary w-100">Tra cứu</button></div>
+        </form>
+        {% for h in hits %}
+        <div class="mb-2"><div class="muted-small">{{ h.title }} · điểm {{ h.score | score(2) }}</div><div class="chunk">{{ h.chunk.text }}</div></div>
+        {% else %}
+        {% if query %}<p class="text-muted small mb-0">Không tìm thấy đoạn phù hợp trong tài liệu đã duyệt.</p>{% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header"><span class="section-title">Thêm tài liệu</span></div>
+      <form method="post" action="/mon-hoc/{{ course.id }}/tai-lieu" enctype="multipart/form-data" class="card-body" data-loading="Đang xử lý...">
+        {{ csrf() }}
+        <div class="mb-2"><label class="form-label small mb-1">Tiêu đề</label><input name="title" class="form-control" placeholder="Ví dụ: Bài 17 – Câu lệnh lặp"></div>
+        <div class="mb-2">
+          <label class="form-label small mb-1">Chủ đề</label>
+          <select name="topic_id" class="form-select">
+            <option value="">Dùng chung cho cả môn</option>
+            {% for t in course.topics %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="mb-2"><label class="form-label small mb-1">Tệp (.docx, .pdf, .txt, .md)</label><input type="file" name="file" class="form-control" accept=".docx,.pdf,.txt,.md"></div>
+        <div class="text-center muted-small my-1">hoặc dán nội dung</div>
+        <div class="mb-2"><textarea name="content" class="form-control" rows="7" placeholder="Dán nội dung bài học..."></textarea></div>
+        <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="approve_now" id="approveNow"><label class="form-check-label small" for="approveNow">Duyệt ngay (tôi đã kiểm tra nội dung)</label></div>
+        <button class="btn btn-primary">Thêm tài liệu</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

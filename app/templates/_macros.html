@@ -1,0 +1,66 @@
+{% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token }}">{% endmacro %}
+
+{% macro difficulty_badge(level) -%}
+{%- set colors = {1: "secondary", 2: "info", 3: "primary", 4: "danger"} -%}
+<span class="badge level-badge text-bg-{{ colors.get(level, 'secondary') }}">{{ DIFFICULTY.get(level, level) }}</span>
+{%- endmacro %}
+
+{% macro hint_badge(level) -%}
+{%- if level is none or level == 0 -%}
+<span class="badge hint-badge hint-0" title="Không cần gợi ý">Tự lực</span>
+{%- else -%}
+<span class="badge hint-badge hint-{{ level }}" title="{{ HINT_LEVELS[level][1] }}">Mức {{ level }} · {{ HINT_LEVELS[level][0] }}</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro mode_badge(mode, short=false) -%}
+{%- if mode == "direct" -%}
+<span class="badge mode-badge mode-direct" title="{{ MODE_LABELS['direct'] }}"><i class="bi bi-lightning-charge"></i> {{ "Đối chứng" if short else MODE_GROUPS['direct'] }}</span>
+{%- else -%}
+<span class="badge mode-badge mode-adaptive" title="{{ MODE_LABELS['adaptive'] }}"><i class="bi bi-signpost-split"></i> {{ "Thực nghiệm" if short else MODE_GROUPS['adaptive'] }}</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro session_badge(s) -%}
+{%- if s.status == "active" -%}<span class="badge text-bg-light border">Đang làm</span>
+{%- elif s.status == "given_up" -%}<span class="badge text-bg-secondary">Bỏ qua</span>
+{%- elif s.independent -%}<span class="badge text-bg-success">Tự giải</span>
+{%- elif s.solution_viewed -%}<span class="badge text-bg-danger-subtle text-danger-emphasis border border-danger-subtle">Xem lời giải</span>
+{%- else -%}<span class="badge text-bg-warning-subtle text-warning-emphasis border border-warning-subtle">Nhờ gợi ý</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro mastery_bar(p, n_obs=1, label=true) -%}
+{%- set pct = (p * 100) | round | int -%}
+{%- set css = "secondary" if n_obs == 0 else ("success" if p >= 0.85 else ("primary" if p >= 0.4 else "warning")) -%}
+<div class="d-flex align-items-center gap-2 mastery">
+  <div class="progress flex-grow-1" role="progressbar" aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100" style="height: 8px;">
+    <div class="progress-bar bg-{{ css }}" style="width: {{ pct if n_obs else 0 }}%"></div>
+  </div>
+  {% if label %}<small class="text-muted text-nowrap mastery-num">{{ pct ~ "%" if n_obs else "–" }}</small>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro empty_state(icon, title, text) -%}
+<div class="empty-state text-center py-5">
+  <div class="empty-icon"><i class="bi bi-{{ icon }}"></i></div>
+  <h5 class="mt-3">{{ title }}</h5>
+  <p class="text-muted mb-3">{{ text }}</p>
+  {{ caller() if caller }}
+</div>
+{%- endmacro %}
+
+{% macro kpi(icon, color, value, label, sub="") -%}
+<div class="kpi-card">
+  <div class="kpi-icon bg-{{ color }}-subtle text-{{ color }}-emphasis"><i class="bi bi-{{ icon }}"></i></div>
+  <div>
+    <div class="kpi-value">{{ value }}</div>
+    <div class="kpi-label">{{ label }}</div>
+    {% if sub %}<div class="kpi-sub">{{ sub }}</div>{% endif %}
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro metric_value(key, value) -%}
+{%- if value is none -%}–{%- elif key in ("independent_rate", "solution_rate") -%}{{ value | pct(1) }}{%- else -%}{{ value | score(2) }}{%- endif -%}
+{%- endmacro %}

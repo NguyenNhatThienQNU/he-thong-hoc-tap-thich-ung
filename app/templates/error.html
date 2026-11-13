@@ -1,0 +1,10 @@
+{% extends "student_base.html" if student and not teacher else "base.html" %}
+{% block title %}Lỗi {{ status }}{% endblock %}
+{% block content %}
+<div class="text-center py-5">
+  <div class="display-4 text-muted"><i class="bi bi-exclamation-octagon"></i></div>
+  <h1 class="h4 mt-3">{% if status == 404 %}Không tìm thấy trang{% elif status == 403 %}Không thể thực hiện{% else %}Đã có lỗi xảy ra{% endif %}</h1>
+  <p class="text-muted">{{ detail }}</p>
+  <a href="{{ '/dashboard' if teacher else ('/hs' if student else '/') }}" class="btn btn-primary">Về trang chính</a>
+</div>
+{% endblock %}

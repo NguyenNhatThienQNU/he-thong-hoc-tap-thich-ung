@@ -1,0 +1,21 @@
+# Triển khai thử lên Render (gói miễn phí). Lưu ý: ổ đĩa của gói miễn phí bị xóa khi khởi động lại,
+# nên khi chạy thực nghiệm thật hãy tạo PostgreSQL trên Render và đặt DATABASE_URL.
+services:
+  - type: web
+    name: ai-goi-mo
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:create_app --factory --host 0.0.0.0 --port $PORT --proxy-headers
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PUBLIC_BASE_URL
+        sync: false

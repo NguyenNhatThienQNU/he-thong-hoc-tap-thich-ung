@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, mode_badge, empty_state with context %}
+{% block title %}Lớp {{ classroom.name }}{% endblock %}
+{% block content %}
+<div class="page-head d-flex flex-wrap justify-content-between align-items-end gap-2 mb-4">
+  <div>
+    <a href="/lop" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Lớp học</a>
+    <h1 class="h4 mb-0 mt-1">Lớp {{ classroom.name }}</h1>
+    <span class="muted-small">{{ classroom.course.name }} · {{ classroom.students|length }} học sinh</span>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a href="/lop/{{ classroom.id }}/phieu" class="btn btn-outline-primary btn-sm"><i class="bi bi-qr-code"></i> In phiếu đăng nhập</a>
+    <a href="/mon-hoc/{{ classroom.course_id }}/thuc-nghiem" class="btn btn-outline-primary btn-sm"><i class="bi bi-graph-up-arrow"></i> Báo cáo thực nghiệm</a>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#addStudents"><i class="bi bi-person-plus"></i> Thêm học sinh</button>
+  </div>
+</div>
+
+<div class="collapse {% if not classroom.students %}show{% endif %} mb-4" id="addStudents">
+  <div class="card border-0 shadow-sm"><div class="card-body">
+    <form method="post" action="/lop/{{ classroom.id }}/hoc-sinh" enctype="multipart/form-data" class="row g-3">
+      {{ csrf() }}
+      <div class="col-md-7">
+        <label class="form-label small mb-1">Dán danh sách (mỗi dòng: “Mã HS, Họ và tên” hoặc chỉ “Họ và tên”)</label>
+        <textarea name="pasted" class="form-control" rows="5" placeholder="HS01, Nguyễn Văn An&#10;HS02, Trần Thị Bình"></textarea>
+      </div>
+      <div class="col-md-5">
+        <label class="form-label small mb-1">Hoặc chọn tệp Excel/CSV (có cột “Họ và tên”, “Mã HS”)</label>
+        <input type="file" name="file" class="form-control" accept=".xlsx,.csv">
+        <button class="btn btn-primary mt-3">Thêm vào lớp</button>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<div class="row g-4">
+  <div class="col-xl-9">
+    <div class="card border-0 shadow-sm">
+      {% if classroom.students %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead><tr><th>Học sinh</th><th>Mã đăng nhập</th><th>Nhóm thực nghiệm</th><th>Đầu vào</th><th>Nắm vững TB</th><th>Câu đã luyện</th><th>Tự giải</th><th>Mức hỗ trợ TB</th><th></th></tr></thead>
+          <tbody>
+          {% for r in rows %}{% set st = r.student %}
+            <tr>
+              <td class="text-nowrap"><a href="/hoc-sinh/{{ st.id }}" class="text-decoration-none fw-semibold">{{ st.full_name }}</a>{% if st.student_code %}<div class="muted-small">{{ st.student_code }}</div>{% endif %}</td>
+              <td><span class="login-code">{{ st.login_code }}</span></td>
+              <td>
+                <form method="post" action="/hoc-sinh/{{ st.id }}/nhom" class="m-0">
+                  {{ csrf() }}
+                  <select name="mode" class="form-select form-select-sm" data-autosubmit style="min-width: 170px">
+                    <option value="" {% if not st.mode %}selected{% endif %}>Theo lớp ({{ MODE_GROUPS[classroom.default_mode] | lower }})</option>
+                    <option value="adaptive" {% if st.mode == 'adaptive' %}selected{% endif %}>{{ MODE_GROUPS['adaptive'] }}</option>
+                    <option value="direct" {% if st.mode == 'direct' %}selected{% endif %}>{{ MODE_GROUPS['direct'] }}</option>
+                  </select>
+                </form>
+              </td>
+              <td>{{ r.pre | score }}</td>
+              <td>{{ avg_mastery[st.id] | pct if avg_mastery[st.id] is not none else "–" }}</td>
+              <td>{{ r.sessions }}</td>
+              <td>{{ r.independent_rate | pct }}</td>
+              <td>{{ r.mean_level | score(1) }}</td>
+              <td class="text-nowrap">
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-light" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="/hoc-sinh/{{ st.id }}"><i class="bi bi-person-lines-fill"></i> Hồ sơ học tập</a></li>
+                    <li><form method="post" action="/hoc-sinh/{{ st.id }}/xem-thu">{{ csrf() }}<button class="dropdown-item"><i class="bi bi-eye"></i> Xem như học sinh này</button></form></li>
+                    <li><form method="post" action="/hoc-sinh/{{ st.id }}/ma-moi" data-confirm="Cấp mã đăng nhập mới? Mã cũ sẽ không dùng được nữa.">{{ csrf() }}<button class="dropdown-item"><i class="bi bi-key"></i> Cấp mã mới</button></form></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><form method="post" action="/hoc-sinh/{{ st.id }}/xoa" data-confirm="Xóa {{ st.full_name }} và toàn bộ dữ liệu học tập?">{{ csrf() }}<button class="dropdown-item text-danger"><i class="bi bi-trash"></i> Xóa học sinh</button></form></li>
+                  </ul>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      {% call empty_state("person-plus", "Lớp chưa có học sinh", "Dán danh sách hoặc chọn tệp Excel để thêm học sinh.") %}{% endcall %}
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-xl-3">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header"><span class="section-title">Chia nhóm thực nghiệm</span></div>
+      <div class="card-body">
+        <div class="d-flex flex-column gap-1 mb-3 small">
+          <div class="d-flex justify-content-between">{{ mode_badge("adaptive") }} <b>{{ counts["adaptive"] }}</b></div>
+          <div class="d-flex justify-content-between">{{ mode_badge("direct") }} <b>{{ counts["direct"] }}</b></div>
+        </div>
+        <form method="post" action="/lop/{{ classroom.id }}/chia-nhom" class="mb-2" data-confirm="Chia lại nhóm cho cả lớp theo điểm bài đầu vào?">
+          {{ csrf() }}<input type="hidden" name="method" value="balanced">
+          <button class="btn btn-primary btn-sm w-100"><i class="bi bi-shuffle"></i> Chia ngẫu nhiên cân bằng</button>
+        </form>
+        <p class="muted-small">Xếp học sinh theo điểm đầu vào, ghép cặp liền kề rồi bốc thăm mỗi cặp một em vào mỗi nhóm, để hai nhóm tương đương nhau.</p>
+        <form method="post" action="/lop/{{ classroom.id }}/chia-nhom">
+          {{ csrf() }}<input type="hidden" name="method" value="class">
+          <button class="btn btn-outline-secondary btn-sm w-100">Cả lớp theo chế độ mặc định</button>
+        </form>
+        <p class="muted-small mt-2 mb-0">Dùng khi so sánh theo lớp: một lớp thực nghiệm, một lớp đối chứng.</p>
+      </div>
+    </div>
+    <div class="card border-0 shadow-sm">
+      <div class="card-header"><span class="section-title">Thông tin lớp</span></div>
+      <form method="post" action="/lop/{{ classroom.id }}/sua" class="card-body">
+        {{ csrf() }}
+        <div class="mb-2"><label class="form-label small mb-1">Tên lớp</label><input name="name" class="form-control form-control-sm" value="{{ classroom.name }}"></div>
+        <div class="mb-3"><label class="form-label small mb-1">Chế độ AI mặc định</label>
+          <select name="default_mode" class="form-select form-select-sm">{% for k, v in MODE_LABELS.items() %}<option value="{{ k }}" {% if classroom.default_mode == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+        <button class="btn btn-primary btn-sm">Lưu</button>
+      </form>
+      <form method="post" action="/lop/{{ classroom.id }}/xoa" class="px-3 pb-3" data-confirm="Xóa lớp {{ classroom.name }} cùng toàn bộ dữ liệu học sinh?">{{ csrf() }}<button class="btn btn-link btn-sm text-danger p-0">Xóa lớp</button></form>
+    </div>
+  </div>
+</div>
+{% endblock %}

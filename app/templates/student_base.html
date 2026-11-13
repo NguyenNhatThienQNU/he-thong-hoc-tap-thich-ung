@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block body_class %}student-app{% endblock %}
+{% block nav %}
+<nav class="navbar app-nav student-nav sticky-top">
+  <div class="container px-3">
+    <a class="navbar-brand" href="/hs">
+      <span class="brand-mark"><i class="bi bi-lightbulb-fill"></i></span>
+      <span class="brand-text">{{ app_name }}</span>
+    </a>
+    {% if student %}
+    <div class="d-flex align-items-center gap-2">
+      <span class="d-none d-sm-inline small text-muted">{{ student.full_name }} · {{ student.classroom.name }}</span>
+      <form method="post" action="/hs/dang-xuat" class="m-0">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-sm btn-light" title="Đăng xuất"><i class="bi bi-box-arrow-right"></i><span class="d-none d-sm-inline"> Thoát</span></button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</nav>
+{% endblock %}
+{% block main_class %}container px-3 py-4{% endblock %}

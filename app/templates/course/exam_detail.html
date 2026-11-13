@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, difficulty_badge, mode_badge with context %}
+{% block title %}{{ exam.title }}{% endblock %}
+{% block content %}
+{% include "course/_tabs.html" %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div>
+    <a href="/mon-hoc/{{ course.id }}/kiem-tra" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Bài kiểm tra</a>
+    <h2 class="h5 mb-0 mt-1">{{ exam.title }} <span class="badge text-bg-light border align-middle">{{ EXAM_KINDS[exam.kind] }}</span>
+      {% if exam.is_open %}<span class="badge text-bg-success align-middle">Đang mở</span>{% else %}<span class="badge text-bg-secondary align-middle">Đóng</span>{% endif %}</h2>
+  </div>
+  <div class="d-flex gap-2">
+    <form method="post" action="/kiem-tra/{{ exam.id }}/mo">{{ csrf() }}
+      {% if exam.is_open %}<button class="btn btn-outline-secondary btn-sm"><i class="bi bi-lock"></i> Đóng bài</button>
+      {% else %}<button class="btn btn-success btn-sm"><i class="bi bi-unlock"></i> Mở cho học sinh làm</button>{% endif %}
+    </form>
+    <form method="post" action="/kiem-tra/{{ exam.id }}/xoa" data-confirm="Xóa bài kiểm tra và toàn bộ bài làm của học sinh?">{{ csrf() }}<button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button></form>
+  </div>
+</div>
+<div class="row g-4">
+  <div class="col-lg-7">
+    <form method="post" action="/kiem-tra/{{ exam.id }}" class="card border-0 shadow-sm">
+      {{ csrf() }}
+      <div class="card-body">
+        <div class="row g-2 mb-3">
+          <div class="col-md-6"><label class="form-label small mb-1">Tên bài</label><input name="title" class="form-control form-control-sm" value="{{ exam.title }}"></div>
+          <div class="col-md-3"><label class="form-label small mb-1">Loại</label>
+            <select name="kind" class="form-select form-select-sm">{% for k, v in EXAM_KINDS.items() %}<option value="{{ k }}" {% if exam.kind == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+          <div class="col-md-3"><label class="form-label small mb-1">Thời gian (phút)</label><input type="number" name="duration_min" value="{{ exam.duration_min }}" class="form-control form-control-sm"></div>
+        </div>
+        <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="show_answers" id="sa" {% if exam.show_answers %}checked{% endif %}><label class="form-check-label small" for="sa">Cho học sinh xem đáp án đúng sau khi nộp (nên tắt với bài sau học nếu còn làm bài ghi nhớ cùng bộ câu)</label></div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="section-title">Chọn câu hỏi ({{ selected|length }} đã chọn)</span>
+        </div>
+        {% for t, items in by_topic %}
+        <div class="mb-3">
+          <div class="fw-semibold small mb-1">{{ t.name }}</div>
+          {% for q in items %}
+          <label class="d-flex gap-2 align-items-start border rounded p-2 mb-1 bg-white">
+            <input type="checkbox" class="form-check-input mt-1" name="question_ids" value="{{ q.id }}" {% if q.id in selected %}checked{% endif %}>
+            <span class="small flex-grow-1"><span class="text-muted">#{{ q.id }}</span> {{ q.stem | truncate_text(140) }}</span>
+            {{ difficulty_badge(q.difficulty) }}
+          </label>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted small">Chưa có câu hỏi dùng cho kiểm tra. Hãy soạn câu với mục đích “Kiểm tra”.</p>
+        {% endfor %}
+        <button class="btn btn-primary">Lưu bài kiểm tra</button>
+      </div>
+    </form>
+  </div>
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header"><span class="section-title">Kết quả</span></div>
+      <div class="table-responsive" style="max-height: 75vh;">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th>Học sinh</th><th>Nhóm</th><th>Điểm</th><th></th></tr></thead>
+          <tbody>
+          {% for st in students %}
+            {% set a = attempts.get(st.id) %}
+            <tr>
+              <td class="small">{{ st.full_name }}<div class="muted-small">{{ st.classroom.name }}</div></td>
+              <td>{{ mode_badge(st.effective_mode, true) }}</td>
+              <td>{% if a and a.submitted_at %}<b>{{ a.score | score }}</b> <span class="muted-small">({{ a.correct_count }}/{{ a.total }})</span>{% elif a %}<span class="badge text-bg-info">Đang làm</span>{% else %}<span class="text-muted small">–</span>{% endif %}</td>
+              <td>{% if a %}<form method="post" action="/kiem-tra/{{ exam.id }}/lam-lai/{{ st.id }}" data-confirm="Xóa bài làm để {{ st.full_name }} làm lại?">{{ csrf() }}<button class="btn btn-sm btn-link p-0 text-muted" title="Cho làm lại"><i class="bi bi-arrow-counterclockwise"></i></button></form>{% endif %}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" class="text-muted small">Chưa có lớp nào học môn này.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

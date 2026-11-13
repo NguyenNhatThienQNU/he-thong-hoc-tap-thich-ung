@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Phiếu đăng nhập lớp {{ classroom.name }}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 no-print">
+  <div>
+    <a href="/lop/{{ classroom.id }}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Lớp {{ classroom.name }}</a>
+    <h1 class="h5 mb-0 mt-1">Phiếu đăng nhập – lớp {{ classroom.name }}</h1>
+    <span class="muted-small">Học sinh quét mã QR hoặc vào <code>{{ base }}/hs</code> rồi nhập mã.</span>
+  </div>
+  <button class="btn btn-primary btn-sm" onclick="window.print()"><i class="bi bi-printer"></i> In phiếu</button>
+</div>
+<div class="slip-grid">
+  {% for st, svg in slips %}
+  <div class="slip">
+    <div>{{ svg | safe }}</div>
+    <div>
+      <div class="fw-semibold">{{ st.full_name }}</div>
+      <div class="muted-small mb-1">Lớp {{ classroom.name }}{% if st.student_code %} · {{ st.student_code }}{% endif %}</div>
+      <div class="slip-code">{{ st.login_code }}</div>
+      <div class="muted-small">{{ app_name }} · {{ base }}/hs</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

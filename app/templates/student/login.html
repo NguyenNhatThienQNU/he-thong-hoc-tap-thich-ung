@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf with context %}
+{% block title %}Học sinh đăng nhập{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+{% block nav %}{% endblock %}
+{% block main_class %}container py-5{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6 col-lg-4">
+    <div class="text-center mb-4">
+      <span class="brand-mark brand-mark-lg"><i class="bi bi-lightbulb-fill"></i></span>
+      <h1 class="h4 mt-3 mb-1">{{ app_name }}</h1>
+      <p class="text-muted small">Nhập mã đăng nhập trên phiếu thầy cô phát</p>
+    </div>
+    <div class="card shadow-sm border-0">
+      <div class="card-body p-4">
+        {% if error %}<div class="alert alert-danger py-2">{{ error }}</div>{% endif %}
+        <form method="post" action="/hs/dang-nhap">
+          {{ csrf() }}
+          <input name="code" class="form-control form-control-lg text-center slip-code mb-3" value="{{ code or '' }}" maxlength="10" placeholder="VD: K7Q2MD" autocomplete="off" autocapitalize="characters" required autofocus>
+          <button class="btn btn-primary btn-lg w-100">Vào học</button>
+        </form>
+      </div>
+    </div>
+    <p class="text-center mt-3 small"><a href="/">Trang chủ</a> · <a href="/login">Giáo viên</a></p>
+  </div>
+</div>
+{% endblock %}

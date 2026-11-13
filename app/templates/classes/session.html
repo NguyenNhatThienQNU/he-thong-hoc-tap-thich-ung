@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "_macros.html" import mode_badge, hint_badge, session_badge, difficulty_badge with context %}
+{% block title %}Phiên luyện tập #{{ s.id }}{% endblock %}
+{% block content %}
+<div class="page-head mb-3">
+  <a href="/hoc-sinh/{{ s.student_id }}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> {{ s.student.full_name }}</a>
+  <h1 class="h5 mb-1 mt-1">Phiên luyện tập #{{ s.id }} {{ mode_badge(s.mode) }} {{ session_badge(s) }}</h1>
+  <span class="muted-small">{{ s.started_at | localdt }}{% if s.duration_seconds %} · {{ (s.duration_seconds / 60) | round(1) | score(1) }} phút{% endif %} · nộp {{ s.attempts }} lần ({{ s.wrong_attempts }} sai) · nhờ AI {{ s.hint_requests }} lần · {{ hint_badge(s.max_hint_level) }}
+  {% if s.p_before is not none and s.p_after is not none %} · nắm vững {{ s.p_before | pct }} → {{ s.p_after | pct }}{% endif %}</span>
+</div>
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <div class="d-flex gap-1 mb-2"><span class="badge text-bg-light border">{{ q.topic.name }}</span>{{ difficulty_badge(q.difficulty) }}<a href="/cau-hoi/{{ q.id }}" class="badge text-bg-light border text-decoration-none">#{{ q.id }}</a></div>
+        <div class="q-stem">{{ q.stem | md }}</div>
+        {% if q.kind == 'mcq' %}<ol type="A" class="small mt-2">{% for o in q.options_list %}<li class="{% if loop.index0 == q.correct_option %}text-success fw-semibold{% endif %}">{{ o }}</li>{% endfor %}</ol>{% endif %}
+        <div class="ref-answer mt-2">Đáp án: {{ q.final_answer_text }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header"><span class="section-title">Nhật ký tương tác</span><div class="muted-small">Nhận định chẩn đoán của AI chỉ hiển thị cho giáo viên</div></div>
+      <div class="card-body">
+        {% for m in s.messages %}
+        {% set meta = m.meta or {} %}
+        <div class="msg msg-{{ m.role }} kind-{{ m.kind }} {% if meta.get('correct') is sameas true %}ok{% elif meta.get('correct') is sameas false %}bad{% endif %}">
+          <div class="bubble">{{ m.content | md }}</div>
+          <div class="meta">
+            {{ m.created_at | localdt("%H:%M:%S") }}
+            {% if m.level %} · {{ hint_badge(m.level) }}{% endif %}
+            {% if meta.get('difficulty') %} · {{ DIFFICULTY_TYPES.get(meta['difficulty'], meta['difficulty']) }}{% endif %}
+            {% if meta.get('analysis') %}<div class="fst-italic">AI nhận định: {{ meta['analysis'] }}</div>{% endif %}
+            {% if meta.get('sources') %}<div><i class="bi bi-book"></i> {{ meta['sources'] | join(", ") }}</div>{% endif %}
+            {% if meta.get('leak_blocked') %}<div class="text-danger"><i class="bi bi-shield-check"></i> Đã chặn một gợi ý làm lộ đáp án và thay bằng gợi ý an toàn</div>{% endif %}
+            {% if meta.get('ai_error') %}<div class="text-warning-emphasis"><i class="bi bi-exclamation-triangle"></i> AI lỗi, dùng gợi ý theo luật</div>{% endif %}
+          </div>
+        </div>
+        {% else %}
+        <p class="text-muted small mb-0">Chưa có tương tác.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

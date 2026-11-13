@@ -1,0 +1,62 @@
+{% extends "student_base.html" %}
+{% from "_macros.html" import csrf with context %}
+{% block title %}{{ exam.title }}{% endblock %}
+{% block content %}
+<form method="post" action="/hs/kiem-tra/{{ exam.id }}" id="examForm" autocomplete="off">
+  {{ csrf() }}
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 sticky-top bg-body py-2" style="top: 56px; z-index: 5;">
+    <div>
+      <h1 class="h5 mb-0">{{ exam.title }}</h1>
+      <span class="muted-small">{{ questions|length }} câu · làm bài độc lập, không dùng AI</span>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <span class="timer" id="timer" data-left="{{ seconds_left }}"><i class="bi bi-stopwatch"></i> --:--</span>
+      <button class="btn btn-primary" id="submitBtn">Nộp bài</button>
+    </div>
+  </div>
+  {% for q in questions %}
+  <div class="exam-q">
+    <div class="d-flex gap-2 mb-2"><span class="badge text-bg-primary">Câu {{ loop.index }}</span></div>
+    <div class="q-stem mb-2">{{ q.stem | md }}</div>
+    {% if q.kind == "mcq" %}
+      {% for o in q.options_list %}
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="q_{{ q.id }}" id="q{{ q.id }}_{{ loop.index0 }}" value="{{ loop.index0 }}" {% if attempt.answers.get(q.id|string) == loop.index0|string %}checked{% endif %}>
+        <label class="form-check-label w-100" for="q{{ q.id }}_{{ loop.index0 }}"><b>{{ LETTERS[loop.index0] }}.</b> {{ o }}</label>
+      </div>
+      {% endfor %}
+    {% elif q.kind == "open" %}
+      <textarea name="q_{{ q.id }}" class="form-control" rows="3" placeholder="Câu trả lời của em"></textarea>
+    {% else %}
+      <input name="q_{{ q.id }}" class="form-control font-monospace" placeholder="Câu trả lời của em">
+    {% endif %}
+  </div>
+  {% endfor %}
+  <button class="btn btn-primary btn-lg w-100 mb-4">Nộp bài</button>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const form = document.getElementById("examForm");
+  const timer = document.getElementById("timer");
+  let left = Number(timer.dataset.left);
+  let submitted = false;
+  form.addEventListener("submit", (e) => {
+    if (submitted) return;
+    if (left > 0 && !window.confirm("Em chắc chắn muốn nộp bài?")) { e.preventDefault(); return; }
+    submitted = true;
+  });
+  window.addEventListener("beforeunload", (e) => { if (!submitted) { e.preventDefault(); e.returnValue = ""; } });
+  const tick = () => {
+    const m = Math.floor(left / 60), s = left % 60;
+    timer.innerHTML = `<i class="bi bi-stopwatch"></i> ${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    timer.classList.toggle("low", left <= 60);
+    if (left <= 0) { submitted = true; form.submit(); return; }
+    left -= 1;
+    setTimeout(tick, 1000);
+  };
+  tick();
+})();
+</script>
+{% endblock %}

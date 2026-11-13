@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, empty_state with context %}
+{% block title %}Bài kiểm tra · {{ course.name }}{% endblock %}
+{% block content %}
+{% include "course/_tabs.html" %}
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header"><span class="section-title">Bài kiểm tra (học sinh làm không có AI)</span><div class="muted-small">Dùng để đo năng lực đầu vào, khả năng giải bài độc lập sau khi học và khả năng ghi nhớ sau một thời gian.</div></div>
+      {% if rows %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead><tr><th>Bài</th><th>Loại</th><th>Số câu</th><th>Thời gian</th><th>Đã nộp</th><th>Điểm TB</th><th>Trạng thái</th></tr></thead>
+          <tbody>
+          {% for e, n_done, avg in rows %}
+            <tr class="clickable-row" data-href="/kiem-tra/{{ e.id }}">
+              <td><a href="/kiem-tra/{{ e.id }}" class="text-decoration-none">{{ e.title }}</a></td>
+              <td><span class="badge text-bg-light border">{{ EXAM_KINDS[e.kind] }}</span></td>
+              <td>{{ e.question_ids|length }}</td>
+              <td>{{ e.duration_min }} phút</td>
+              <td>{{ n_done }}</td>
+              <td>{{ avg | score(2) }}</td>
+              <td>{% if e.is_open %}<span class="badge text-bg-success">Đang mở</span>{% else %}<span class="badge text-bg-secondary">Đóng</span>{% endif %}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      {% call empty_state("clipboard-check", "Chưa có bài kiểm tra", "Tạo bài đầu vào trước khi học sinh bắt đầu luyện tập.") %}{% endcall %}
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header"><span class="section-title">Tạo bài kiểm tra</span><div class="muted-small">Ngân hàng hiện có {{ test_pool }} câu dùng cho kiểm tra.</div></div>
+      <form method="post" action="/mon-hoc/{{ course.id }}/kiem-tra" class="card-body">
+        {{ csrf() }}
+        <div class="mb-2"><label class="form-label small mb-1">Tên bài</label><input name="title" class="form-control" placeholder="Ví dụ: Bài kiểm tra đầu vào" required></div>
+        <div class="mb-2"><label class="form-label small mb-1">Loại</label>
+          <select name="kind" class="form-select">{% for k, v in EXAM_KINDS.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6"><label class="form-label small mb-1">Thời gian (phút)</label><input type="number" name="duration_min" value="20" min="1" max="180" class="form-control"></div>
+          <div class="col-6"><label class="form-label small mb-1">Số câu mỗi chủ đề</label><input type="number" name="per_topic" value="2" min="0" max="10" class="form-control"></div>
+        </div>
+        <button class="btn btn-primary w-100">Tạo và chọn câu</button>
+        <p class="muted-small mt-2 mb-0">Hệ thống chọn ngẫu nhiên câu kiểm tra ở mỗi chủ đề, thầy cô chỉnh lại ở bước sau. Bài ghi nhớ nên dùng cùng bộ câu với bài sau học và làm sau 1–2 tuần.</p>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

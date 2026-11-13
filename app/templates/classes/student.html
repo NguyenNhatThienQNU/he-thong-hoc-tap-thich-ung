@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, mode_badge, hint_badge, session_badge, mastery_bar, kpi with context %}
+{% block title %}{{ pupil.full_name }}{% endblock %}
+{% block content %}
+<div class="page-head d-flex flex-wrap justify-content-between align-items-end gap-2 mb-4">
+  <div>
+    <a href="/lop/{{ pupil.classroom_id }}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Lớp {{ pupil.classroom.name }}</a>
+    <h1 class="h4 mb-0 mt-1">{{ pupil.full_name }} {{ mode_badge(pupil.effective_mode) }}</h1>
+    <span class="muted-small">Mã đăng nhập <span class="login-code">{{ pupil.login_code }}</span>{% if pupil.last_seen_at %} · truy cập {{ pupil.last_seen_at | ago }}{% endif %}</span>
+  </div>
+  <form method="post" action="/hoc-sinh/{{ pupil.id }}/xem-thu">{{ csrf() }}<button class="btn btn-outline-primary btn-sm"><i class="bi bi-eye"></i> Xem như học sinh này</button></form>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">{{ kpi("pencil-square", "primary", stats.n, "Câu đã luyện") }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("trophy", "success", stats.independent_rate | pct if stats.n else "–", "Tỉ lệ tự giải") }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("life-preserver", "warning", stats.mean_level | score(1) if stats.n else "–", "Mức hỗ trợ trung bình") }}</div>
+  <div class="col-6 col-lg-3">{{ kpi("book-half", "danger", stats.solutions, "Lần xem lời giải") }}</div>
+</div>
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header"><span class="section-title">Mức nắm vững theo chủ đề</span></div>
+      <ul class="list-group list-group-flush">
+        {% for st in states %}
+        <li class="list-group-item">
+          <div class="d-flex justify-content-between small mb-1"><span>{{ st.topic.name }}</span><span class="badge text-bg-{{ st.css }}-subtle text-{{ st.css }}-emphasis">{{ st.label }}</span></div>
+          {{ mastery_bar(st.p, st.n_obs) }}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header"><span class="section-title">Xu hướng theo tuần</span></div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0"><thead><tr><th>Tuần từ</th><th>Số câu</th><th>Tự giải</th><th>Mức hỗ trợ TB</th></tr></thead>
+          <tbody>{% for t in stats.trend %}<tr><td>{{ t.week[8:10] }}/{{ t.week[5:7] }}</td><td>{{ t.n }}</td><td>{{ t.independent_rate | pct }}</td><td>{{ t.mean_level | score(2) }}</td></tr>
+          {% else %}<tr><td colspan="4" class="text-muted small">Chưa có dữ liệu</td></tr>{% endfor %}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card border-0 shadow-sm">
+      <div class="card-header"><span class="section-title">Bài kiểm tra</span></div>
+      <ul class="list-group list-group-flush">
+        {% for a in attempts %}
+        <li class="list-group-item d-flex justify-content-between small"><span>{{ a.exam.title }} <span class="muted-small">({{ EXAM_KINDS[a.exam.kind] | lower }})</span></span>
+          <span>{% if a.submitted_at %}<b>{{ a.score | score }}</b> · {{ a.submitted_at | localdt("%d/%m") }}{% else %}đang làm{% endif %}</span></li>
+        {% else %}<li class="list-group-item text-muted small">Chưa làm bài kiểm tra nào.</li>{% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header"><span class="section-title">Lịch sử luyện tập</span><div class="muted-small">Bấm vào một dòng để xem toàn bộ hội thoại với AI</div></div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead><tr><th>Thời gian</th><th>Chủ đề</th><th>Kết quả</th><th>Hỗ trợ cao nhất</th><th>Nhờ AI</th></tr></thead>
+          <tbody>
+          {% for s in sessions %}
+            <tr class="clickable-row" data-href="/phien/{{ s.id }}">
+              <td class="small text-nowrap">{{ s.started_at | localdt("%H:%M %d/%m") }}</td>
+              <td class="small">{{ s.question.topic.name | truncate_text(30) }}</td>
+              <td>{{ session_badge(s) }}</td>
+              <td>{% if s.status == 'active' %}<span class="text-muted">–</span>{% else %}{{ hint_badge(s.max_hint_level) }}{% endif %}</td>
+              <td>{{ s.hint_requests }}</td>
+            </tr>
+          {% else %}<tr><td colspan="5" class="text-muted small">Chưa luyện tập.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

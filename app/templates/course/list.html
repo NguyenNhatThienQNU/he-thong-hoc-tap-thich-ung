@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, empty_state with context %}
+{% block title %}Môn học{% endblock %}
+{% block content %}
+<div class="page-head d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h4 mb-0">Môn học</h1>
+  <button class="btn btn-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#newCourse"><i class="bi bi-plus-lg"></i> Tạo môn học</button>
+</div>
+<div class="collapse {% if not courses %}show{% endif %} mb-4" id="newCourse">
+  <div class="card border-0 shadow-sm"><div class="card-body">
+    <form method="post" action="/mon-hoc" class="row g-3">
+      {{ csrf() }}
+      <div class="col-md-5"><label class="form-label">Tên môn học / khóa học</label><input name="name" class="form-control" placeholder="Ví dụ: Tin học 10 – Lập trình Python" required></div>
+      <div class="col-md-2"><label class="form-label">Khối lớp</label><input name="grade" class="form-control" placeholder="10"></div>
+      <div class="col-md-5"><label class="form-label">Mô tả</label><input name="description" class="form-control"></div>
+      <div class="col-12"><button class="btn btn-primary">Tạo</button></div>
+    </form>
+  </div></div>
+</div>
+{% if courses %}
+<div class="row g-3">
+  {% for c, n in courses %}
+  <div class="col-md-6 col-xl-4">
+    <a href="/mon-hoc/{{ c.id }}" class="card class-card border-0 shadow-sm h-100 text-decoration-none text-reset">
+      <div class="card-body">
+        <div class="d-flex gap-3 align-items-center mb-3">
+          <div class="avatar"><i class="bi bi-journal-bookmark"></i></div>
+          <div><h2 class="h6 mb-0">{{ c.name }}</h2>{% if c.grade %}<span class="muted-small">Khối {{ c.grade }}</span>{% endif %}</div>
+        </div>
+        <div class="row g-2 text-center">
+          <div class="col-3"><div class="stat-pill"><b>{{ n.topics }}</b>chủ đề</div></div>
+          <div class="col-3"><div class="stat-pill"><b>{{ n.materials }}</b>tài liệu</div></div>
+          <div class="col-3"><div class="stat-pill"><b>{{ n.questions }}</b>câu hỏi</div></div>
+          <div class="col-3"><div class="stat-pill"><b>{{ n.students }}</b>học sinh</div></div>
+        </div>
+        {% if n.materials_pending or n.drafts %}
+        <div class="small text-warning-emphasis mt-2"><i class="bi bi-hourglass-split"></i> Chờ duyệt: {{ n.materials_pending }} tài liệu, {{ n.drafts }} câu hỏi</div>
+        {% endif %}
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+{% call empty_state("journal-bookmark", "Chưa có môn học", "Tạo môn học đầu tiên, hoặc nạp dữ liệu mẫu ở trang Tổng quan.") %}{% endcall %}
+{% endif %}
+{% endblock %}

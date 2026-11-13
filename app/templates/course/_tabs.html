@@ -1,0 +1,18 @@
+<div class="page-head d-flex flex-wrap justify-content-between align-items-end gap-2 mb-2">
+  <div>
+    <a href="/mon-hoc" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Môn học</a>
+    <h1 class="h4 mb-0 mt-1">{{ course.name }}</h1>
+  </div>
+</div>
+<ul class="nav course-tabs mb-4">
+  {% set tabs = [
+    ("topics", "/mon-hoc/" ~ course.id, "diagram-3", "Chủ đề & lộ trình"),
+    ("materials", "/mon-hoc/" ~ course.id ~ "/tai-lieu", "book", "Kho tri thức"),
+    ("bank", "/mon-hoc/" ~ course.id ~ "/cau-hoi", "list-check", "Ngân hàng câu hỏi"),
+    ("exams", "/mon-hoc/" ~ course.id ~ "/kiem-tra", "clipboard-check", "Bài kiểm tra"),
+    ("experiment", "/mon-hoc/" ~ course.id ~ "/thuc-nghiem", "graph-up-arrow", "Thực nghiệm"),
+  ] %}
+  {% for key, url, icon, label in tabs %}
+  <li class="nav-item"><a class="nav-link {% if tab == key %}active{% endif %}" href="{{ url }}"><i class="bi bi-{{ icon }}"></i> {{ label }}</a></li>
+  {% endfor %}
+</ul>

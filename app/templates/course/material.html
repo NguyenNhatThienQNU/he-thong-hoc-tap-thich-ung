@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf with context %}
+{% block title %}{{ material.title }}{% endblock %}
+{% block content %}
+{% include "course/_tabs.html" %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div>
+    <a href="/mon-hoc/{{ course.id }}/tai-lieu" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> Kho tri thức</a>
+    <h2 class="h5 mb-0 mt-1">{{ material.title }}
+      {% if material.is_approved %}<span class="badge text-bg-success align-middle">Đã duyệt</span>{% else %}<span class="badge text-bg-warning align-middle">Chờ duyệt</span>{% endif %}
+    </h2>
+  </div>
+  <div class="d-flex gap-2">
+    {% if material.is_approved %}
+    <a href="/mon-hoc/{{ course.id }}/cau-hoi?tai_lieu={{ material.id }}#ai" class="btn btn-outline-primary btn-sm"><i class="bi bi-stars"></i> AI soạn câu hỏi từ tài liệu này</a>
+    <form method="post" action="/tai-lieu/{{ material.id }}/duyet">{{ csrf() }}<input type="hidden" name="action" value="unapprove"><button class="btn btn-outline-warning btn-sm">Gỡ duyệt</button></form>
+    {% else %}
+    <form method="post" action="/tai-lieu/{{ material.id }}/duyet">{{ csrf() }}<button class="btn btn-success btn-sm"><i class="bi bi-check2-circle"></i> Duyệt và đưa vào kho</button></form>
+    {% endif %}
+  </div>
+</div>
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <form method="post" action="/tai-lieu/{{ material.id }}/sua" class="card-body">
+        {{ csrf() }}
+        <div class="row g-2 mb-2">
+          <div class="col-md-7"><label class="form-label small mb-1">Tiêu đề</label><input name="title" class="form-control" value="{{ material.title }}"></div>
+          <div class="col-md-5">
+            <label class="form-label small mb-1">Chủ đề</label>
+            <select name="topic_id" class="form-select">
+              <option value="">Dùng chung cho cả môn</option>
+              {% for t in course.topics %}<option value="{{ t.id }}" {% if material.topic_id == t.id %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <label class="form-label small mb-1">Nội dung (giáo viên kiểm tra, sửa lỗi nhận dạng chữ trước khi duyệt)</label>
+        <textarea name="content" class="form-control font-monospace" rows="20" style="font-size:.86rem">{{ material.content }}</textarea>
+        <div class="d-flex justify-content-between mt-3">
+          <button class="btn btn-primary">Lưu thay đổi</button>
+        </div>
+      </form>
+      <form method="post" action="/tai-lieu/{{ material.id }}/xoa" class="px-3 pb-3" data-confirm="Xóa tài liệu này khỏi kho tri thức?">{{ csrf() }}<button class="btn btn-link btn-sm text-danger p-0">Xóa tài liệu</button></form>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header"><span class="section-title">Các đoạn tri thức ({{ material.chunks|length }})</span><div class="muted-small">AI tra cứu theo từng đoạn và ghi nguồn khi gợi ý.</div></div>
+      <div class="card-body" style="max-height: 70vh; overflow-y: auto;">
+        {% for c in material.chunks %}<div class="chunk mb-2"><span class="muted-small">#{{ loop.index }}</span> {{ c.text }}</div>
+        {% else %}<p class="text-muted small mb-0">Tài liệu chưa được duyệt nên chưa có trong kho.</p>{% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
