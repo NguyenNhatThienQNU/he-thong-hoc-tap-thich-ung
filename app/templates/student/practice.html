@@ -86,13 +86,13 @@
   <div class="col-lg-7">
     <div class="card border-0 shadow-sm">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <span class="section-title" style="font-size:.95rem"><i class="bi bi-robot"></i> Chatbot Trợ lý Tư duy</span>
-        <span class="muted-small">{{ "AI có thể cho em lời giải" if s.mode == "direct" else "AI gợi mở tư duy, không giải hộ" }}</span>
+        <span class="section-title" style="font-size:.95rem"><i class="bi bi-chat-dots"></i> Trò chuyện với AI</span>
+        <span class="muted-small">{{ "AI có thể cho em lời giải" if s.mode == "direct" else "AI gợi mở, không giải hộ" }}</span>
       </div>
       <div class="card-body">
         <div class="chat-wrap" id="chat"></div>
         <form id="askForm" class="d-flex gap-2 mt-3" autocomplete="off">
-          <input id="askInput" class="form-control" placeholder="{{ 'Hỏi Chatbot về câu này...' if s.mode == 'direct' else 'Hỏi Chatbot để gợi mở hướng suy nghĩ...' }}">
+          <input id="askInput" class="form-control" placeholder="{{ 'Hỏi AI về câu này...' if s.mode == 'direct' else 'Hỏi AI về kiến thức em chưa rõ...' }}">
           <button class="btn btn-outline-primary"><i class="bi bi-send"></i></button>
         </form>
       </div>

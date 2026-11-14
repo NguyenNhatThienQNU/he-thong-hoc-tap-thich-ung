@@ -20,7 +20,7 @@
     if (m.correct === true) cls += " ok";
     else if (m.correct === false) cls += " bad";
     div.className = cls;
-    const who = m.role === "student" ? "Em" : m.role === "ai" ? "Chatbot Trợ lý Tư duy" : "";
+    const who = m.role === "student" ? "Em" : m.role === "ai" ? "AI Gợi Mở" : "";
     const level = m.role === "ai" && m.level ? ` · <span class="badge hint-badge hint-${m.level}">Mức ${m.level} · ${esc(m.level_name)}</span>` : "";
     const sources = m.sources && m.sources.length ? `<div><i class="bi bi-book"></i> Theo: ${m.sources.map(esc).join(", ")}</div>` : "";
     div.innerHTML = `<div class="bubble">${m.html}</div><div class="meta">${who ? who + " · " : ""}${esc(m.time)}${level}${sources}</div>`;
@@ -31,7 +31,7 @@
     if (chat.children.length) return;
     const tip = mode === "direct"
       ? "Em hãy đọc đề và nộp câu trả lời. Nếu cần, bấm “Hỏi AI lời giải”."
-      : "Em hãy thử tự suy nghĩ và làm trước. Khi vướng, bấm “Cần gợi ý” và viết ngắn gọn chỗ em đang phân vân, Chatbot sẽ gợi mở từng bước giúp em nâng tầm tư duy.";
+      : "Em hãy thử tự làm trước. Khi vướng, bấm “Cần gợi ý” và viết ngắn gọn em đang vướng ở đâu, AI sẽ gợi ý từng bước.";
     chat.innerHTML = `<div class="text-center text-muted small py-4" id="chatTip"><i class="bi bi-lightbulb fs-3 d-block mb-2"></i>${tip}</div>`;
   }
 

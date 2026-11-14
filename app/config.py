@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     )
 
     # --- Chung ---
-    app_name: str = "Trợ lý AI Nâng Tầm Tư Duy"
+    app_name: str = "AI Gợi Mở"
     secret_key: str = ""  # để trống: tự sinh và lưu vào data/.secret_key
     data_dir: Path = Path("/tmp/goimo-data") if ON_VERCEL else BASE_DIR / "data"
     database_url: str = ""  # để trống: SQLite tại data/app.db

@@ -1,8 +1,8 @@
-# Trợ lý AI Nâng Tầm Tư Duy – Chatbot hỗ trợ học sinh học tập thích ứng
+# AI Gợi Mở – hệ thống hỗ trợ học tập thích ứng bằng AI
 
-Sản phẩm của đề tài: Nghiên cứu và phát triển Trợ lý AI giúp học sinh nâng tầm tư duy (một chatbot hỗ trợ học tập thích ứng) nhằm nâng cao năng lực tự học, rèn luyện tư duy phản biện và hạn chế sự phụ thuộc vào AI của học sinh THPT.
+Sản phẩm của đề tài: Nghiên cứu và phát triển hệ thống hỗ trợ học tập thích ứng bằng trí tuệ nhân tạo nhằm nâng cao năng lực tự học và hạn chế sự phụ thuộc vào AI của học sinh THPT.
 
-Chatbot AI không giải hộ. Học sinh viết chỗ đang vướng, AI chẩn đoán khó khăn và gợi ý theo bậc thang 5 mức (phương pháp Socratic), giảm dần hỗ trợ khi học sinh tiến bộ. Hệ thống có sẵn mô-đun thực nghiệm để so sánh với cách dùng AI cho lời giải trực tiếp.
+AI không giải hộ. Học sinh viết chỗ đang vướng, AI chẩn đoán khó khăn và gợi ý theo bậc thang 5 mức, giảm dần hỗ trợ khi học sinh tiến bộ. Hệ thống có sẵn mô-đun thực nghiệm để so sánh với cách dùng AI cho lời giải trực tiếp.
 
 ## Chức năng
 
