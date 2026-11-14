@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     postgres_url: str = ""  # tên biến mà Vercel Postgres / Neon tự tạo (POSTGRES_URL)
     timezone: str = "Asia/Ho_Chi_Minh"
     public_base_url: str = "http://localhost:8000"
-    allow_registration: bool = False  # tài khoản giáo viên đầu tiên luôn được phép đăng ký
+    allow_registration: bool = True  # Luôn cho phép đăng ký thêm giáo viên
 
     # --- AI ---
     ai_provider: str = "auto"  # auto | gemini | mock
