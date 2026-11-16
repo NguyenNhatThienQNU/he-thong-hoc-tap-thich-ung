@@ -1,4 +1,8 @@
-"""Nhà cung cấp AI: Google Gemini (thư viện google-genai, API generateContent, đầu ra JSON theo lược đồ)."""
+"""Nhà cung cấp AI: Google Gemini (thư viện google-genai, API generateContent, đầu ra JSON theo lược đồ).
+
+Hỗ trợ cơ chế Multi-Key Pool (xoay vòng nhiều API key dự phòng) và
+Model Fallback Cascade (tự động chuyển sang mô hình dự phòng khi máy chủ quá tải).
+"""
 
 from __future__ import annotations
 
@@ -26,9 +30,6 @@ from .schemas import (
 )
 
 log = logging.getLogger(__name__)
-
-RETRYABLE_CODES = {429, 500, 502, 503, 504}
-MAX_ATTEMPTS = 3
 
 
 def inline_schema(model: type[BaseModel]) -> dict:
@@ -59,15 +60,20 @@ def _strip_fences(text: str) -> str:
     return match.group(1) if match else text
 
 
-def _friendly_error(exc: Exception, model: str) -> str:
+def _friendly_error(exc: Exception | None, model: str) -> str:
+    if exc is None:
+        return "Không nhận được phản hồi từ dịch vụ AI."
     code = getattr(exc, "code", None)
     message = getattr(exc, "message", None) or str(exc)
-    if code in (400, 401, 403) and "key" in message.lower():
-        return "Khóa GEMINI_API_KEY không hợp lệ hoặc chưa được cấp quyền."
+    msg_lower = message.lower()
+    if code in (400, 401, 403) and ("key" in msg_lower or "permission" in msg_lower):
+        return "Khóa GEMINI_API_KEY không hợp lệ hoặc chưa được kích hoạt."
     if code == 404:
-        return f"Không tìm thấy mô hình '{model}'. Kiểm tra lại GEMINI_MODEL trong tệp .env."
-    if code == 429:
-        return "Đã vượt hạn mức gọi Gemini (quota). Hãy thử lại sau ít phút."
+        return f"Không tìm thấy mô hình '{model}'. Hệ thống đã thử các mô hình dự phòng nhưng không thành công."
+    if code == 429 or "quota" in msg_lower or "resource_exhausted" in msg_lower:
+        return "Đã đạt giới hạn hạn mức API (Quota). Hệ thống đang tự động điều phối lại, vui lòng thử lại sau ít giây."
+    if code == 503 or "high demand" in msg_lower or "overloaded" in msg_lower:
+        return "Máy chủ AI của Google đang có lượng truy cập đột biến. Hãy nhấn 'Thử lại' sau giây lát."
     return f"Lỗi Gemini ({code}): {message[:300]}"
 
 
@@ -81,39 +87,155 @@ class GeminiProvider(AIProvider):
     name = "gemini"
     is_real = True
 
-    def __init__(self, api_key: str, model: str, timeout_seconds: int = 120):
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        timeout_seconds: int = 120,
+        api_keys: str = "",
+        fallback_models: str = "",
+    ):
         from google import genai
         from google.genai import types
 
-        if not api_key:
+        # 1. Trích xuất tất cả API Key (hỗ trợ nhiều key cách nhau bằng dấu phẩy, chấm phẩy hoặc xuống dòng)
+        combined_keys = f"{api_key}\n{api_keys}"
+        keys = []
+        for token in re.split(r"[,;\n\s]+", combined_keys):
+            token = token.strip()
+            if token and token not in keys:
+                keys.append(token)
+
+        if not keys:
             raise AIError("Chưa cấu hình GEMINI_API_KEY.")
+
+        self.keys = keys
         self.types = types
-        self.model = model
-        self.client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=int(timeout_seconds * 1000)))
+        self.timeout_seconds = timeout_seconds
+
+        # 2. Xây dựng danh sách mô hình chính và danh sách mô hình dự phòng (Model Cascade)
+        primary = model.strip() if model.strip() else "gemini-flash-latest"
+        models = [primary]
+
+        defaults = [
+            "gemini-2.0-flash",
+            "gemini-1.5-flash",
+            "gemini-flash-latest",
+            "gemini-1.5-flash-8b",
+            "gemini-1.5-pro",
+        ]
+        extra_models = [m.strip() for m in re.split(r"[,;\n\s]+", fallback_models) if m.strip()]
+        for m in extra_models + defaults:
+            if m and m not in models:
+                models.append(m)
+
+        self.models = models
+        self.model = primary
+
+        # Bộ nhớ đệm Client và trạng thái quản lý Cooldown / Load-balancing
+        self._clients: dict[str, genai.Client] = {}
+        self._key_cooldown: dict[str, float] = {}
+        self._key_index: int = 0
+
+        log.info(
+            "Đã khởi tạo GeminiProvider với %d API key và %d mô hình (Chính: %s, Dự phòng: %s)",
+            len(self.keys),
+            len(self.models),
+            self.model,
+            ", ".join(self.models[1:]),
+        )
+
+    def _get_client(self, key: str):
+        if key not in self._clients:
+            from google import genai
+
+            self._clients[key] = genai.Client(
+                api_key=key,
+                http_options=self.types.HttpOptions(timeout=int(self.timeout_seconds * 1000)),
+            )
+        return self._clients[key]
+
+    def _get_active_keys(self) -> list[str]:
+        now = time.time()
+        available = [k for k in self.keys if self._key_cooldown.get(k, 0) <= now]
+        if not available:
+            earliest = min(self.keys, key=lambda k: self._key_cooldown.get(k, 0))
+            return [earliest]
+        # Xoay vòng round-robin để phân tán tải đều giữa các key
+        idx = self._key_index % len(available)
+        self._key_index += 1
+        return available[idx:] + available[:idx]
 
     # ------------------------------------------------------------------
     def _generate(self, contents, config):
-        """Gọi generateContent, tự thử lại khi gặp lỗi tạm thời (quá tải, hết hạn mức)."""
+        """Gọi generateContent với cơ chế Multi-Key Pool (xoay vòng key) và Model Fallback Cascade (chuyển mô hình dự phòng khi quá tải)."""
         from google.genai import errors
 
-        delay = 2.0
-        for attempt in range(1, MAX_ATTEMPTS + 1):
-            try:
-                return self.client.models.generate_content(model=self.model, contents=contents, config=config)
-            except errors.APIError as exc:
-                if getattr(exc, "code", None) in RETRYABLE_CODES and attempt < MAX_ATTEMPTS:
-                    log.info("Gemini lỗi tạm thời (%s), thử lại sau %.0fs", exc.code, delay)
-                    time.sleep(delay)
-                    delay *= 2
+        last_exc = None
+        for model_idx, model in enumerate(self.models):
+            active_keys = self._get_active_keys()
+            for key_idx, key in enumerate(active_keys):
+                masked_key = f"...{key[-4:]}" if len(key) >= 4 else "***"
+                client = self._get_client(key)
+
+                try:
+                    resp = client.models.generate_content(model=model, contents=contents, config=config)
+                    # Thành công: xóa cooldown cho key này
+                    self._key_cooldown.pop(key, None)
+                    if model_idx > 0 or key_idx > 0:
+                        log.info(
+                            "Gemini xử lý thành công nhờ cơ chế dự phòng (Mô hình: %s, Key: %s)",
+                            model,
+                            masked_key,
+                        )
+                    return resp
+                except errors.APIError as exc:
+                    last_exc = exc
+                    code = getattr(exc, "code", None)
+                    msg = getattr(exc, "message", None) or str(exc)
+                    msg_lower = msg.lower()
+
+                    is_high_demand = (
+                        ("high demand" in msg_lower)
+                        or ("spikes in demand" in msg_lower)
+                        or ("overloaded" in msg_lower)
+                        or (code == 503)
+                    )
+                    is_quota = (
+                        (code == 429)
+                        or ("resource_exhausted" in msg_lower)
+                        or ("quota" in msg_lower)
+                    )
+                    is_key_invalid = (code in (400, 401, 403)) and (
+                        "key" in msg_lower or "permission" in msg_lower
+                    )
+                    is_not_found = code == 404
+
+                    if is_quota or is_key_invalid:
+                        # Key này bị hạn mức (429) hoặc sai key: Đưa vào cooldown 60s và chuyển ngay sang Key tiếp theo
+                        self._key_cooldown[key] = time.time() + 60.0
+                        log.warning(
+                            "Gemini Key %s gặp lỗi hạn mức (%s). Tự động chuyển sang Key dự phòng tiếp theo...",
+                            masked_key,
+                            code,
+                        )
+                        continue
+                    elif is_high_demand or is_not_found:
+                        # Máy chủ mô hình đang quá tải (503): Chuyển sang mô hình dự phòng tiếp theo
+                        log.warning(
+                            "Mô hình Gemini '%s' đang quá tải lượng truy cập (503 / High demand). Tự động chuyển sang mô hình dự phòng...",
+                            model,
+                        )
+                        break
+                    else:
+                        log.info("Gemini lỗi tạm thời (%s) trên Key %s: %s", code, masked_key, msg[:100])
+                        continue
+                except Exception as exc:
+                    last_exc = exc
+                    log.warning("Lỗi kết nối Gemini trên Key %s: %s", masked_key, exc)
                     continue
-                raise AIError(_friendly_error(exc, self.model)) from exc
-            except Exception as exc:  # lỗi mạng, hết thời gian chờ...
-                if attempt < MAX_ATTEMPTS:
-                    time.sleep(delay)
-                    delay *= 2
-                    continue
-                raise AIError(f"Không kết nối được Gemini: {exc}") from exc
-        raise AIError("Không gọi được Gemini.")
+
+        raise AIError(_friendly_error(last_exc, self.models[0])) from last_exc
 
     def _json(self, prompt: str, system: str, model_cls: type[BaseModel]):
         types = self.types

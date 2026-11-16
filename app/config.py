@@ -35,7 +35,9 @@ class Settings(BaseSettings):
     # --- AI ---
     ai_provider: str = "auto"  # auto | gemini | mock
     gemini_api_key: str = ""
+    gemini_api_keys: str = ""  # Danh sách nhiều key dự phòng, cách nhau bằng dấu phẩy
     gemini_model: str = "gemini-flash-latest"
+    gemini_fallback_models: str = "gemini-2.0-flash,gemini-1.5-flash,gemini-1.5-flash-8b,gemini-1.5-pro"
     ai_timeout_seconds: int = 120
 
     # --- Tải tệp ---
@@ -62,7 +64,8 @@ class Settings(BaseSettings):
     def effective_ai_provider(self) -> str:
         provider = self.ai_provider.strip().lower()
         if provider == "auto":
-            return "gemini" if self.gemini_api_key else "mock"
+            has_key = bool(self.gemini_api_key.strip() or self.gemini_api_keys.strip())
+            return "gemini" if has_key else "mock"
         return provider
 
     def ensure_dirs(self) -> None:

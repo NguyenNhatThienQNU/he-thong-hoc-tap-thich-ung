@@ -17,7 +17,13 @@ def build_provider(settings: Settings) -> AIProvider:
         from .gemini import GeminiProvider
 
         try:
-            return GeminiProvider(settings.gemini_api_key, settings.gemini_model, settings.ai_timeout_seconds)
+            return GeminiProvider(
+                api_key=settings.gemini_api_key,
+                model=settings.gemini_model,
+                timeout_seconds=settings.ai_timeout_seconds,
+                api_keys=getattr(settings, "gemini_api_keys", ""),
+                fallback_models=getattr(settings, "gemini_fallback_models", ""),
+            )
         except AIError as exc:
             log.warning("Không khởi tạo được Gemini (%s) – chuyển sang chế độ demo.", exc)
     elif provider != "mock":
